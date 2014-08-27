@@ -10,38 +10,17 @@ var INCLUDED_CHROMOSOME_NAMES = ["chr1", "chr2", "chr3", "chr4", "chr5", "chr6",
                                  "chr18", "chr19", "chr20", "chr21", "chr22",
                                  "chrX", "chrY"];
 var IDIOGRAM_HEIGHT = 7;
+var CENTROMERE_RADIUS = 1.5;
+var ARM_CLIP_RADIUS = 10;
 
 
 function drawChromosomes(selector, cytobands) {
-  var width = 1300, height = 500, margin = {top: 50, bottom: 20, left: 20, right: 50};
+  var data = cytobandsToChromosomes(cytobands);
 
-  // Remove the contigs we don't care about.
-  cytobands = cytobands.filter(function(d) {
-    return INCLUDED_CHROMOSOME_NAMES.indexOf(d.chromosome) != -1;
-  });
-
-
-  var chromosomes = d3.nest()
-    .key(getter('chromosome'))
-    .sortKeys(chromosomeComparator)
-    .entries(cytobands);
-
-  window.c = chromosomes;
-
-  var totalBases = 0;
-  for (var i in chromosomes) {
-    var chromosomeLength = d3.max(chromosomes[i].values, getter('end'));
-    chromosomes[i].basePairs = chromosomeLength;
-    chromosomes[i].start = totalBases;
-    totalBases += chromosomeLength;
-    chromosomes[i].end = totalBases;
-  }
-
-  // Now we do d3 viz codez.
-  var data = chromosomes;
+  var width = 800, height = 100, margin = {top: 50, bottom: 20, left: 20, right: 50};
 
   var xscale = d3.scale.linear()
-      .domain([0, totalBases])
+      .domain([0, data.totalBases])
       .range([0, width - margin.left - margin.right]);
 
   var svg = d3.select(selector)
@@ -59,29 +38,86 @@ function drawChromosomes(selector, cytobands) {
 
   chromosomes.append('clipPath')
       .attr('id', function(d) {
-        return d.key + '-clipper';
+        return d.key + '-clipper-P';
       })
     .append('rect')
       .attr('y', 0)
       .attr('height', IDIOGRAM_HEIGHT)
       .attr('x', 0)
-      .attr('width', function(d) { return xscale(d.end - d.start); })
-      .attr('rx', 20)
-      .attr('ry', 20);
+      .attr('width', function(d) { return xscale(d.pArm.end - d.pArm.start); })
+      .attr('rx', ARM_CLIP_RADIUS)
+      .attr('ry', ARM_CLIP_RADIUS);
+
+  chromosomes.append('clipPath')
+      .attr('id', function(d) {
+        return d.key + '-clipper-Q';
+      })
+    .append('rect')
+      .attr('y', 0)
+      .attr('height', IDIOGRAM_HEIGHT)
+      .attr('x', function(d) { return xscale(d.pArm.end - d.pArm.start); })
+      .attr('width', function(d) { return xscale(d.qArm.end - d.qArm.start); })
+      .attr('rx', ARM_CLIP_RADIUS)
+      .attr('ry', ARM_CLIP_RADIUS);
+
+  // chromosomes.selectAll('.sep')
+  //     .data(function(d) { return [d.end - d.start]; })
+  //   .enter().append('line')
+  //     .style('stroke-width', 1)
+  //     .style('stroke', 'black')
+  //     .attr('x1', function(d) { return xscale(d); })
+  //     .attr('x2', function(d) { return xscale(d); })
+  //     .attr('y1', function(d) { return -7; })
+  //     .attr('y2', function(d) { return 14; })
 
   var bands = chromosomes.selectAll('.band')
       .data(function(d) { return d.values; })
     .enter().append('rect')
       .attr('class', 'band')
+      .style('shape-rendering', 'crispEdges')
       .attr('fill', gstainFiller)
       .attr('y', 0)
       .attr('height', IDIOGRAM_HEIGHT)
       .attr('x', function(d) { return xscale(d.start); })
       .attr('width', function(d) { return xscale(d.end - d.start); })
       .attr('clip-path', function(d) {
-        return 'url(#' + d.chromosome + '-clipper' + ')';
-      })
+        if ((d.end + d.chromosome.start) <= d.chromosome.center) // then we're in the P arm
+          return 'url(#' + d.chromosomeName + '-clipper-P' + ')';
+        else // well, then we're in the Q arm
+          return 'url(#' + d.chromosomeName + '-clipper-Q' + ')';
+      });
 
+  chromosomes.selectAll('.centromere')
+      .data(function(d) { return [d.center - d.start]; })
+    .enter().append('circle')
+      .attr('class', 'centromere')
+      .attr('cx', xscale)
+      .attr('cy', IDIOGRAM_HEIGHT/2)
+      .attr('fill', '#FF3333')
+      .attr('r', CENTROMERE_RADIUS);
+
+  var listener = svg.append('rect')
+      .attr('width', width)
+      .attr('height', height)
+      .attr('x', -margin.left)
+      .attr('y', -margin.top)
+      .attr('fill', 'white')
+      .attr('opacity', 0);
+
+  listener.on('mousemove', function() {
+    var mouseX = d3.mouse(this)[0],
+        bp, fmtBp;
+
+    if (mouseX >= 0 && mouseX <= width - margin.left - margin.right)
+      bp = Math.round(xscale.invert(mouseX));
+    else if (mouseX >= width - margin.left - margin.right)
+      bp = Math.round(xscale.invert(width - margin.left - margin.right));
+    else
+      bp = 0;
+
+    fmtBp = d3.format(',')(bp);
+    console.log(fmtBp);
+  });
 
 }
 
@@ -92,20 +128,24 @@ function getter(attr) {
   }
 }
 
+
 function gstainFiller(d) {
   var stain = d.gstain;
   if (stain === 'gneg') {
-    return 'white';
+    return '#dfdfdf';
   } else if (stain === 'gpos') {
-    return 'black';
+    return '#525252';
   } else if (stain === 'acen') {
-    return 'red';
+    return null;
   } else if (stain === 'gvar') {
-    return 'silver';
+    return '#cfcfcf';
+  } else if (stain === 'stalk') {
+    return '#cfcfcf';
   } else {
     return 'white';
   }
 }
+
 
 function chromosomeComparator(k1, k2) {
   k1 = k1.slice(3);
@@ -128,20 +168,69 @@ function chromosomeComparator(k1, k2) {
 }
 
 
+function addPQArms(chromosome) {
+  var bands = chromosome.values;
+
+  var centerP = bands.filter(function(d) {
+    return d.gstain === 'acen' && d.bandname[0] === 'p';
+  });
+
+  var centerQ = bands.filter(function(d) {
+    return d.gstain === 'acen' && d.bandname[0] === 'q';
+  });
+
+  chromosome.pArm = { start: chromosome.start };
+  chromosome.qArm = { end: chromosome.end };
+
+  if (centerP.length > 0)
+    chromosome.pArm.end = chromosome.start + centerP[0].end;
+  if (centerQ.length > 0)
+    chromosome.qArm.start = chromosome.start + centerQ[0].start;
+}
 
 
+function cytobandsToChromosomes(cytobands) {
+  // Remove the contigs we don't care about.
+  cytobands = cytobands.filter(function(d) {
+    return INCLUDED_CHROMOSOME_NAMES.indexOf(d.chromosomeName) != -1;
+  });
 
+  // Group bands by chromosomes
+  var chromosomes = d3.nest()
+    .key(getter('chromosomeName'))
+    .sortKeys(chromosomeComparator)
+    .entries(cytobands);
 
+  // Add metainformation to each chromosome
+  var totalBases = 0;
+  for (var i in chromosomes) {
+    var bands = chromosomes[i].values;
+    var chromosomeLength = d3.max(bands, getter('end'));
+    chromosomes[i].basePairs = chromosomeLength;
+    chromosomes[i].start = totalBases;
+    totalBases += chromosomeLength;
+    chromosomes[i].end = totalBases;
 
+    addPQArms(chromosomes[i]);
+    bands.map(function(d) {
+      d.chromosome = chromosomes[i];
+    });
+    chromosomes[i].center = chromosomes[i].pArm.end;
+  }
+  chromosomes.totalBases = totalBases;
 
+  // TODO(ihodes): Debug statement below:
+  window.c = chromosomes;
 
+  return chromosomes;
+}
 
 
 function main(selector) {
   d3.tsv('cytoband.tsv',
          function(d) {
            return {
-             chromosome: d.chromosome,
+             chromosomeName: d.chromosomeName,
              start: parseInt(d.start, 10),
              end: parseInt(d.end, 10),
              bandname: d.bandname,
