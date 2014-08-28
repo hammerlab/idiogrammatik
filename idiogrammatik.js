@@ -24,8 +24,9 @@ function drawChromosomes(selector, cytobands) {
       xscale = d3.scale.linear()
         .domain([0, data.totalBases])
         .range([0, width - margin.left - margin.right]),
-      fullXDomain = xscale.domain(),
-      curScale = INITIAL_SCALE;
+      fullXDomain = xscale.domain(), // used for scaling
+      curScale = INITIAL_SCALE, // used for scaling
+      lastBp; // used for dragging
 
   window.data = data;
 
@@ -36,21 +37,31 @@ function drawChromosomes(selector, cytobands) {
   redraw(curScale, data.totalBases/2);
 
 
-  function redraw(scale, pivot) {
+  function redraw(scale, pivot, shiftBp) {
     var chromosomes = d3.selectAll('.chromosome');
     var xMax, xMin;
 
-    if (curScale <= scale) {
-      var tscale = scale / curScale;
-      xMax = ((xscale.domain()[1] - pivot) / tscale) + pivot;
-      xMin = pivot - ((pivot - xscale.domain()[0]) / tscale);
-    } else {
-      var tscale = curScale / scale;
-      xMax = ((xscale.domain()[1] - pivot) * tscale) + pivot;
-      xMin = pivot - ((pivot - xscale.domain()[0]) * tscale);
+    if (scale) {
+      if (curScale <= scale) {
+        var tscale = scale / curScale;
+        xMin = pivot - ((pivot - xscale.domain()[0]) / tscale);
+        xMax = ((xscale.domain()[1] - pivot) / tscale) + pivot;
+      } else {
+        var tscale = curScale / scale;
+        xMin = pivot - ((pivot - xscale.domain()[0]) * tscale);
+        xMax = ((xscale.domain()[1] - pivot) * tscale) + pivot;
+      }
+      curScale = scale;
     }
-    curScale = scale;
-    xscale.domain([xMin, xMax]);
+
+    if (shiftBp) {
+      xMin = xscale.domain()[0] - shiftBp;
+      xMax = xscale.domain()[1] - shiftBp;
+    }
+
+    if (shiftBp || scale)
+      xscale.domain([xMin, xMax]);
+
 
     appendArmClips(chromosomes, xscale);
 
@@ -78,6 +89,8 @@ function drawChromosomes(selector, cytobands) {
         .attr('cy', IDIOGRAM_HEIGHT/2)
         .attr('fill', '#FF3333')
         .attr('r', CENTROMERE_RADIUS);
+
+    d3.select('svg g').node().appendChild(d3.select('svg').select('#listener').node());
   }
 
   function appendListenerBox() {
@@ -96,21 +109,33 @@ function drawChromosomes(selector, cytobands) {
           .scaleExtent([1, MAX_ZOOM_SCALE])
           .on("zoom", zoom);
 
+    var dragger = d3.behavior.drag()
+          .on("dragstart", function() {
+            lastBp = bpFromMouse(d3.mouse(this));
+          })
+          .on("drag", drag);
+
     d3.select('#listener')
         .on('mousemove', move)
-        .call(zoomer);
+        .call(zoomer)
+        .call(dragger);
   }
 
   function zoom() {
     redraw(d3.event.scale, bpFromMouse(d3.mouse(this)));
-    d3.select('svg g').node().appendChild(d3.select('svg').select('#listener').node());
+  }
+
+  function drag() {
+    var curBp = bpFromMouse(d3.mouse(this));
+
+    redraw(null, curBp, curBp - lastBp);
   }
 
   function move() {
     var bp = bpFromMouse(d3.mouse(this)),
         fmtBp = d3.format(',')(bp);
 
-    console.log(fmtBp, d3.mouse(this), xscale.range());
+//    console.log(fmtBp, d3.mouse(this), xscale.range());
   }
 
   function appendSvg() {
