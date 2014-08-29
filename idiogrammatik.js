@@ -1,7 +1,7 @@
 (function() {
 "use strict";
 
-// Data from GRCh38
+// Data from GRCh38 [cytobands.tsv]
 // c.f. http://bioviz.org/quickload//H_sapiens_Dec_2013/
 // c.f. http://www.ncbi.nlm.nih.gov/projects/genome/assembly/grc/human/data/
 var INCLUDED_CHROMOSOME_NAMES = ["chr1", "chr2", "chr3", "chr4", "chr5", "chr6",
@@ -25,153 +25,79 @@ function drawChromosomes(selector, cytobands) {
         .domain([0, data.totalBases])
         .range([0, width - margin.left - margin.right]),
       fullXDomain = xscale.domain(), // used for scaling
-      curScale = INITIAL_SCALE, // used for scaling
+      curScale, // used for scaling
       lastBp; // used for dragging
 
-  window.data = data;
 
-  appendSvg();
-  appendDna();
-  appendListenerBox();
-  initializeMouseListener();
-  redraw(curScale, data.totalBases/2);
+  appendSvg(selector, width, height, margin);
+  appendChromosomes(data);
+  appendArmClips(d3.selectAll('.chromosome'));
+  appendListenerBox(d3.select('svg g'), width, height, margin);
+  initializeMouseListener(d3.select('#listener'));
+
+  redraw(curScale, data.totalBases/2, null, true);
 
 
-  function redraw(scale, pivot, shiftBp) {
-    var chromosomes = d3.selectAll('.chromosome');
-    var xMax, xMin;
+  function redraw(scale, pivot, shiftBp, forceDraw) {
+    var chromosomes = d3.selectAll('.chromosome'),
+        xMin = xscale.domain()[0],
+        xMax = xscale.domain()[1];
 
     if (scale) {
-      if (curScale <= scale) {
+      if (!curScale) {
+        // pass (we haven't yet initialized curScale)
+      } else if (curScale < scale) { // scaling up
         var tscale = scale / curScale;
         xMin = pivot - ((pivot - xscale.domain()[0]) / tscale);
         xMax = ((xscale.domain()[1] - pivot) / tscale) + pivot;
-      } else {
+      } else if (curScale > scale) { // scaling down
         var tscale = curScale / scale;
         xMin = pivot - ((pivot - xscale.domain()[0]) * tscale);
         xMax = ((xscale.domain()[1] - pivot) * tscale) + pivot;
       }
-      curScale = scale;
     }
+    curScale = scale;
 
     if (shiftBp) {
-      xMin = xscale.domain()[0] - shiftBp;
-      xMax = xscale.domain()[1] - shiftBp;
+      xMin -= shiftBp;
+      xMax -= shiftBp;
     }
 
-    if (shiftBp || scale)
+    if (shiftBp || scale || forceDraw) {
       xscale.domain([xMin, xMax]);
-
-
-    appendArmClips(chromosomes, xscale);
-
-    chromosomes
-        .attr('transform', function(d) {
-          return 'translate(' + xscale(d.start) + ',0)';
-        });
-
-    chromosomes
-      .selectAll('.band')
-        .attr('x', function(d) { return xscale(xMin + d.start); }) // xMin required because these coords are within-chromosome
-        .attr('width', function(d) { return xscale(xMin + d.end - d.start); })
-        .attr('clip-path', function(d) {
-          if ((d.end + d.chromosome.start) <= d.chromosome.center) // then we're in the P arm
-            return 'url(#' + d.chromosomeName + '-clipper-P' + ')';
-          else // well, then we're in the Q arm
-            return 'url(#' + d.chromosomeName + '-clipper-Q' + ')';
-        });
-
-    chromosomes
-      .selectAll('.centromere')
-        .attr('cx', function(d) {
-          return xscale(xMin + d.center - d.start);
-        })
-        .attr('cy', IDIOGRAM_HEIGHT/2)
-        .attr('fill', '#FF3333')
-        .attr('r', CENTROMERE_RADIUS);
-
-    d3.select('svg g').node().appendChild(d3.select('svg').select('#listener').node());
+      resizeArmClips(chromosomes, xscale);
+      resizeBands(chromosomes, xscale);
+      reattachListenerToTop();
+    }
   }
 
-  function appendListenerBox() {
-    return d3.select('svg g').append('rect')
-      .attr('id', 'listener')
-      .attr('width', width)
-      .attr('height', height)
-      .attr('x', -margin.left)
-      .attr('y', -margin.top)
-      .attr('fill', 'blue')
-      .attr('opacity', 0);
-  }
 
-  function initializeMouseListener() {
+  function initializeMouseListener(listener) {
     var zoomer = d3.behavior.zoom()
           .scaleExtent([1, MAX_ZOOM_SCALE])
-          .on("zoom", zoom);
-
-    var dragger = d3.behavior.drag()
+          .on("zoom", zoom),
+        dragger = d3.behavior.drag()
           .on("dragstart", function() {
-            lastBp = bpFromMouse(d3.mouse(this));
+            lastBp = bpFromMouse(d3.mouse(this), xscale);
           })
           .on("drag", drag);
 
-    d3.select('#listener')
+    listener
         .on('mousemove', move)
         .call(zoomer)
         .call(dragger);
-  }
 
-  function zoom() {
-    redraw(d3.event.scale, bpFromMouse(d3.mouse(this)));
-  }
-
-  function drag() {
-    var curBp = bpFromMouse(d3.mouse(this));
-
-    redraw(null, curBp, curBp - lastBp);
-  }
-
-  function move() {
-    var bp = bpFromMouse(d3.mouse(this)),
-        fmtBp = d3.format(',')(bp);
-
-//    console.log(fmtBp, d3.mouse(this), xscale.range());
-  }
-
-  function appendSvg() {
-    return d3.select(selector)
-      .append('svg')
-        .attr('width', width)
-        .attr('height', height)
-      .append('g')
-        .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
-  }
-
-  function bpFromMouse(mouse) {
-    var mouseX = mouse[0], bp;
-    bp = Math.round(xscale.invert(mouseX));
-    return bp;
-  }
-
-  function appendDna() {
-    var chromosomes = d3.select('svg g').selectAll('.chromosome')
-        .data(data)
-      .enter().append('g')
-        .attr('class', 'chromosome');
-
-    chromosomes.selectAll('.band')
-        .data(function(d) { return d.values; })
-      .enter().append('rect')
-        .attr('class', 'band')
-        .style('shape-rendering', 'crispEdges')
-        .attr('fill', gstainFiller)
-        .attr('y', 0)
-        .attr('height', IDIOGRAM_HEIGHT);
-
-    chromosomes.selectAll('.centromere')
-        .data(function(d) { return [d]; })
-      .enter().append('circle')
-        .attr('class', 'centromere');
+    function zoom() {
+      redraw(d3.event.scale, bpFromMouse(d3.mouse(this), xscale));
+    }
+    function drag() {
+      var curBp = bpFromMouse(d3.mouse(this), xscale);
+      redraw(null, curBp, curBp - lastBp);
+    }
+    function move() {
+      var bp = bpFromMouse(d3.mouse(this), xscale),
+          fmtBp = d3.format(',')(bp);
+    }
   }
 
 }
@@ -182,16 +108,6 @@ function getter(attr) {
     return d[attr];
   }
 }
-
-function within(val, range, end) {
-  var start;
-  if (!end) {
-    start = range[0];
-    end = range[1];
-  }
-  return val >= start && val <= end;
-}
-
 
 function gstainFiller(d) {
   var stain = d.gstain;
@@ -209,28 +125,6 @@ function gstainFiller(d) {
     return 'white';
   }
 }
-
-
-function chromosomeComparator(k1, k2) {
-  k1 = k1.slice(3);
-  k2 = k2.slice(3);
-
-  if (k1 === 'X' || k1 === 'Y' || k2 === 'X' || k2 === 'Y') {
-    if ((k1 === 'X' || k1 === 'Y') && (k2 === 'X' || k2 === 'Y')) {
-      // Both are X, Y, Y comes second.
-      return k1 === 'Y' ? 1 : -1;
-    } else {
-      // Then just one of them is X or Y, whichever is comes second.
-      return ['X', 'Y'].indexOf(k1) === -1 ? -1 : 1;
-    }
-  }
-
-  k1 = parseInt(k1);
-  k2 = parseInt(k2);
-
-  return k1 > k2 ? 1 : -1;
-}
-
 
 function addPQArms(chromosome) {
   var bands = chromosome.values;
@@ -290,41 +184,154 @@ function cytobandsToChromosomes(cytobands) {
 }
 
 
-function appendArmClips(chromosomes, xscale) {
+function chromosomeComparator(k1, k2) {
+  // Orders chromosomes strings (e.g. chrX < chr19 etc).
+  k1 = k1.slice(3);
+  k2 = k2.slice(3);
+
+  if (k1 === 'X' || k1 === 'Y' || k2 === 'X' || k2 === 'Y') {
+    if ((k1 === 'X' || k1 === 'Y') && (k2 === 'X' || k2 === 'Y')) {
+      // Both are X, Y, Y comes second.
+      return k1 === 'Y' ? 1 : -1;
+    } else {
+      // Then just one of them is X or Y, whichever is comes second.
+      return ['X', 'Y'].indexOf(k1) === -1 ? -1 : 1;
+    }
+  }
+
+  return parseInt(k1) > parseInt(k2) ? 1 : -1;
+}
+
+
+function resizeArmClips(chromosomes, xscale) {
   var xMin = xscale.domain()[0];
 
-  d3.selectAll('.clipper').remove();
-
-  chromosomes
-    .append('g')
-      .attr('class', 'clipper')
-    .append('clipPath')
-      .attr('id', function(d) {
-        return d.key + '-clipper-P';
-      })
-    .append('rect')
-      .attr('y', 0)
-      .attr('height', IDIOGRAM_HEIGHT)
-      .attr('x', 0)  // xMin required because these coords are within-chromosome
+  d3.selectAll('.clipper-p')
+      // xMin required because these coords are within-chromosome
       .attr('width', function(d) { return xscale(xMin + d.pArm.end - d.pArm.start); })
       .attr('rx', ARM_CLIP_RADIUS)
       .attr('ry', ARM_CLIP_RADIUS);
 
-  chromosomes
-    .append('g')
-      .attr('class', 'clipper')
-    .append('clipPath')
-      .attr('id', function(d) {
-        return d.key + '-clipper-Q';
-      })
-    .append('rect')
-      .attr('y', 0)
-      .attr('height', IDIOGRAM_HEIGHT)  // xMin required because these coords are within-chromosome
+  d3.selectAll('.clipper-q')
+      // xMin required because these coords are within-chromosome
       .attr('x', function(d) { return xscale(xMin + d.pArm.end - d.pArm.start); })
       .attr('width', function(d) { return xscale(xMin + d.qArm.end - d.qArm.start); })
       .attr('rx', ARM_CLIP_RADIUS)
       .attr('ry', ARM_CLIP_RADIUS);
 }
+
+
+function resizeBands(chromosomes, xscale) {
+  var xMin = xscale.domain()[0],
+      xMax = xscale.domain()[1];
+
+  chromosomes
+      .attr('transform', function(d) {
+        return 'translate(' + xscale(d.start) + ',0)';
+      });
+
+  chromosomes
+    .selectAll('.band')
+      .attr('x', function(d) { return xscale(xMin + d.start); }) // xMin required because these coords are within-chromosome
+      .attr('width', function(d) { return xscale(xMin + d.end - d.start); })
+      .attr('clip-path', function(d) {
+        if ((d.end + d.chromosome.start) <= d.chromosome.center) // then we're in the P arm
+          return 'url(#' + d.chromosomeName + '-clipper-P' + ')';
+        else // well, then we're in the Q arm
+          return 'url(#' + d.chromosomeName + '-clipper-Q' + ')';
+      });
+
+  chromosomes
+    .selectAll('.centromere')
+      .attr('cx', function(d) {
+        return xscale(xMin + d.center - d.start);
+      })
+      .attr('cy', IDIOGRAM_HEIGHT/2)
+      .attr('fill', '#FF3333')
+      .attr('r', CENTROMERE_RADIUS);
+}
+
+
+function reattachListenerToTop() {
+  d3.select('svg g').node().appendChild(d3.select('svg').select('#listener').node());
+}
+
+
+function appendSvg(selector, width, height, margin) {
+  return d3.select(selector)
+    .append('svg')
+      .attr('width', width)
+      .attr('height', height)
+    .append('g')
+      .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+}
+
+
+function appendChromosomes(data) {
+  var chromosomes = d3.select('svg g').selectAll('.chromosome')
+      .data(data)
+    .enter().append('g')
+      .attr('class', 'chromosome');
+
+  chromosomes.selectAll('.band')
+      .data(function(d) { return d.values; })
+    .enter().append('rect')
+      .attr('class', 'band')
+      .attr('fill', gstainFiller)
+      .attr('y', 0)
+      .attr('height', IDIOGRAM_HEIGHT);
+
+  chromosomes.selectAll('.centromere')
+      .data(function(d) { return [d]; })
+    .enter().append('circle')
+      .attr('class', 'centromere');
+}
+
+
+function appendArmClips(chromosomes) {
+  chromosomes
+    .append('g')
+    .append('clipPath')
+      .attr('id', function(d) {
+        return d.key + '-clipper-P';
+      })
+    .append('rect')
+      .attr('class', 'clipper-p')
+      .attr('y', 0)
+      .attr('height', IDIOGRAM_HEIGHT)
+      .attr('x', 0);
+
+  chromosomes
+    .append('g')
+    .append('clipPath')
+      .attr('id', function(d) {
+        return d.key + '-clipper-Q';
+      })
+    .append('rect')
+      .attr('class', 'clipper-q')
+      .attr('y', 0)
+      .attr('height', IDIOGRAM_HEIGHT);
+}
+
+
+function appendListenerBox(svg, width, height, margin) {
+  return svg.append('rect')
+    .attr('id', 'listener')
+    .attr('width', width)
+    .attr('height', height)
+    .attr('x', -margin.left)
+    .attr('y', -margin.top)
+    .attr('fill', 'blue')
+    .attr('opacity', 0);
+}
+
+
+function bpFromMouse(mouse, xscale) {
+  var mouseX = mouse[0], bp;
+  bp = Math.round(xscale.invert(mouseX));
+  return bp;
+}
+
 
 function main(selector) {
   d3.tsv('cytoband.tsv',
@@ -345,6 +352,7 @@ function main(selector) {
            }
          });
 }
+
 
 main('body');
 

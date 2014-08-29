@@ -1,2 +1,2 @@
 text { font-size: 11px; }
-svg { border: 1px solid blue; }
+rect.band { shape-rendering: crispEdges; }
