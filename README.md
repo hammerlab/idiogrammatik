@@ -12,15 +12,16 @@ The goal of project is to provide an easily navigable map of the human genome. T
 - [X] Speed up panning (fps to 30 on a MBA).
 - [X] Zoom.
 - [X] d3-eqsue API.
-- [ ] Better events: pass more information in the `position` argument to event handlers.
-- [ ] Display data (line chart, bar chart, box plot, tbd) alongside the kareogram. 
+- [X] Better events: pass more information in the `position` argument to event handlers.
+- [ ] Display data (line chart, bar chart, box plot, tbd) alongside the kareogram.
 - [ ] Aesthetic customization (bands, cytobands) and tweaks.
 - [ ] Tooltip & data display, associated customization.
-- [ ] Range selection & highlighting. 
+- [ ] Range selection.
+- [ ] Range highlighting.
 - [ ] ~~Ongoing: keep the README.md up-to-date.~~
 
 #### Example usage
-The minimum viable example: 
+The minimum viable example:
 
 ![](http://cl.ly/image/0M371r0O3R1k/Screen%20Shot%202014-08-29%20at%205.19.56%20PM.png)
 
@@ -46,16 +47,17 @@ idiogrammatik.load(function(err, data) {
       .width(1000)
       .height(85)
       .on('click', function(position) {
-        console.log('clicked at ' + position.absBp);
+        console.log('clicked at ' + position.absoluteBp);
+        if (position.chromosome) console.log(position.chromosome);
       })
       .on('mouseover', function(position) {
-        console.log(position.absBp);
+        console.log(position);
       });
       .on('drag', function(position) {
-        console.log(position.absBp);
+        console.log(position);
       });
       .on('zoom', function(position) {
-        console.log(position.absBp);
+        console.log(position);
       });
 
   d3.select('body')
@@ -63,3 +65,5 @@ idiogrammatik.load(function(err, data) {
       .call(kgram);
 });
 ```
+
+The `position` object passed to event callbacks has the following properties: `absoluteBp`, which is the base pair from the offset of the genome, `relativeBp` which is the base pair from the offset of the chromosome, `chromosome` which is the chromosome object at that base pair position, and `fmtAbsoluteBp` & `fmtRelativeBp` which is the formatted string version of `absoluteBp` and `relativeBp`, respectively.

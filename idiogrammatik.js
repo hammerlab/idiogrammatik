@@ -26,7 +26,8 @@ function _idiogrammatik() {
       lastBp, // used for dragging
       svg, chromosomes, listener, data,
       events = {'click': identity, 'mousemove': identity,
-                'drag': identity, 'zoom': identity};
+                'drag': identity, 'zoom': identity,
+                'dragstart': identity, 'dragend': identity};
 
 
   function draw(selection) {
@@ -34,6 +35,7 @@ function _idiogrammatik() {
     //
     // Closes around everything.
     data = selection.datum();
+    window.data = data;
 
     xscale.domain([0, data.totalBases])
         .range([0, width - margin.left - margin.right]);
@@ -115,36 +117,45 @@ function _idiogrammatik() {
     // Closes around xscale, lastBp.
     var zoomer = d3.behavior.zoom()
           .scaleExtent([1, MAX_ZOOM_SCALE])
-          .on("zoom", zoom),
+          .on('zoom', zoom)
+          .on('zoomstart', dispatchEvent('zoomstart'))
+          .on('zoomend', dispatchEvent('zoomend')),
         dragger = d3.behavior.drag()
-          .on("dragstart", function() {
-            lastBp = bpFromMouse(d3.mouse(this), xscale);
+          .on('dragstart', function() {
+            var position = positionFrom(data, d3.mouse(this), xscale);
+            lastBp = position.absoluteBp;
+            if (events['dragstart'])
+              events['dragstart'](position);
           })
-          .on("drag", drag);
+          .on('dragend', dispatchEvent('dragend'))
+          .on('drag', drag);
 
     listener
-        .on('mousemove', move)
-        .on('click', click)
+        .on('mousemove', dispatchEvent('mousemove'))
+        .on('mousedown', dispatchEvent('mousedown'))
+        .on('mouseup', dispatchEvent('mouseup'))
+        .on('click', dispatchEvent('click'))
         .call(zoomer)
         .call(dragger);
 
     function zoom() {
-      var position = positionFromMouse(d3.mouse(this), xscale);
-      redraw(d3.event.scale, position.absBp);
+      var position = positionFrom(data, d3.mouse(this), xscale);
+      if (!position.chromosome) return;
+      redraw(d3.event.scale, position.absoluteBp);
       events['zoom'](position);
     }
     function drag() {
-      var position = positionFromMouse(d3.mouse(this), xscale);
-      redraw(null, position.absBp, position.absBp - lastBp);
+      var position = positionFrom(data, d3.mouse(this), xscale);
+      redraw(null, position.absoluteBp, position.absoluteBp - lastBp);
       events['drag'](position);
     }
-    function move() {
-      var position = positionFromMouse(d3.mouse(this), xscale);
-      events['mousemove'](position);
-    }
-    function click() {
-      var position = positionFromMouse(d3.mouse(this), xscale);
-      events['click'](position);
+    function dispatchEvent(type) {
+      return function() {
+        if (events[type]) {
+          var position = positionFrom(data, d3.mouse(this), xscale);
+          events[type](position);
+        }
+      }
     }
   }
 
@@ -329,17 +340,30 @@ function appendListenerBox(svg, width, height, margin) {
 }
 
 
-function positionFromMouse(mouse, xscale) {
-  // TODO(ihodes): pass more position info
+function positionFrom(data, mouse, xscale) {
   var bp = bpFromMouse(mouse, xscale),
-      fmtBp = d3.format(',')(bp),
-      position = { absBp: bp, fmtAbsBp: fmtBp };
+      fmtBp = d3.format(','),
+      chromosome = chromosomeFromAbsoluteBp(data, bp),
+      position = { absoluteBp: bp,
+                   fmtAbsoluteBp: fmtBp(bp) };
+  if (chromosome) {
+    position.chromosome = chromosome;
+    position.relativeBp = bp - chromosome.start;
+    position.fmtRelativeBp = fmtBp(position.relativeBp);
+  }
   return position;
 }
 
 
 function bpFromMouse(mouse, xscale) {
   return Math.round(xscale.invert(mouse[0]));
+}
+
+
+function chromosomeFromAbsoluteBp(data, bp) {
+  return data.filter(function(chr) {
+    return chr.start <= bp && chr.end > bp;
+  })[0];
 }
 
 

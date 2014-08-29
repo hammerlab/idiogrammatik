@@ -18,10 +18,10 @@
             .width(1000)
             .height(85)
             .on('click', function(position) {
-               console.log('clicked at ' + position.absBp);
+              if (!position.chromosome) return;
+              console.log('clicked at ', position, position.chromosome);
             })
-            .on('mouseover', function(position) {
-              console.log(position.absBp);
+            .on('mousemove', function(position) {
             });
 
        d3.select('body')
