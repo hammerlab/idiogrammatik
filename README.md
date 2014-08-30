@@ -16,6 +16,8 @@ The goal of project is to provide an easily navigable map of the human genome. T
 - [ ] Display data (line chart, bar chart, box plot, tbd) alongside the kareogram.
 - [ ] Aesthetic customization (bands, cytobands) and tweaks.
 - [ ] Tooltip & data display, associated customization.
+- [ ] Programamtic pan and zoom.
+- [ ] Hooks into the SVG (custom elements, etc.).
 - [ ] Range selection.
 - [X] Range highlighting.
 - [ ] ~~Ongoing: keep the README.md up-to-date.~~
