@@ -17,7 +17,7 @@ The goal of project is to provide an easily navigable map of the human genome. T
 - [ ] Aesthetic customization (bands, cytobands) and tweaks.
 - [ ] Tooltip & data display, associated customization.
 - [ ] Programamtic pan and zoom.
-- [ ] Hooks into the SVG (custom elements, etc.).
+- [X] Hooks into the SVG (custom elements, etc.).
 - [ ] Range selection.
 - [X] Range highlighting.
 - [ ] ~~Ongoing: keep the README.md up-to-date.~~
@@ -79,6 +79,31 @@ idiogrammatik.load(function(err, data) {
   // kgram.highlights()[n].remove()
   h.remove();
   // kgram.highlights().remove(); // remove all highlights;
+});
+```
+
+If you wanted to add elements to the graph and have them update when the graph redraws, you might do something like the below (which adds red circles to the end of each chromosome):
+
+```javascript
+// svg is the d3 selection of the svg this karyogram belongs to.
+// scale is the linear d3 scale mapping absolute base pairs to x
+//     coordinates in the SVG.
+kgram.redraw(function(svg, scale) {
+  // Extract the actual chromosome data.
+  var data = svg.selectAll('.chromosome').data();
+
+  // Appends the elements once.
+  svg.selectAll('.c-end')
+      .data(data)
+    .enter().append('circle')
+      .attr('class', 'c-end')
+      .attr('cy', 3)
+      .attr('r', 10)
+      .attr('fill', 'red');
+
+  // Places and sizes them when redrawn.
+  svg.selectAll('.c-end')
+      .attr('cx', function(d) { return scale(d.end); });
 });
 ```
 

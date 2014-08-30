@@ -24,9 +24,10 @@ function _idiogrammatik() {
       margin = {top: 50, bottom: 20, left: 20, right: 50},
       xscale = d3.scale.linear(),
       fullXDomain, // used for scaling
-      curScale, // used for scaling
+      curScale = INITIAL_SCALE, // used for scaling
       lastBp, // used for dragging
       deferred = [],
+      customRedraw = identity,
       svg, chromosomes, listener, data, highlights = [], drawn = false,
       events = {'click': identity, 'mousemove': identity,
                 'drag': identity, 'zoom': identity,
@@ -55,13 +56,6 @@ function _idiogrammatik() {
 
     drawn = true;
   }
-
-  highlights.remove = function() {
-    highlights.map(function(highlight) {
-      return highlight.remove;
-    }).map(function(r) { r() });
-  };
-
   kgram.width = function(_) {
     if (!arguments.length) return width;
     width = _;
@@ -112,6 +106,28 @@ function _idiogrammatik() {
   kgram.highlights = function() {
     return highlights;
   };
+  kgram.svg = function() {
+    return svg;
+  };
+  kgram.scale = function() {
+    return xscale;
+  };
+  kgram.redraw = function(_) {
+    if (!arguments.length) return kgram;
+    customRedraw = _;
+    return kgram;
+  };
+  kgram.forceRedraw = function() {
+    redraw(null, null, null, true);
+    // if (!arguments.length) redraw(null, null, null, true);
+    // else redraw.apply(this, Array.prototype.slice.call(arguments));
+  };
+
+  highlights.remove = function() {
+    highlights.map(function(highlight) {
+      return highlight.remove;
+    }).map(function(remove) { remove() });
+  };
 
 
   function redraw(scale, pivot, shiftBp, forceDraw) {
@@ -151,6 +167,8 @@ function _idiogrammatik() {
       renderHighlights(svg, data, highlights, xscale);
       reattachListenerToTop(svg);
     }
+
+    customRedraw(svg, xscale);
   }
 
 
