@@ -18,15 +18,26 @@
             .width(1000)
             .height(85)
             .on('click', function(position) {
-              if (!position.chromosome) return;
-              console.log('clicked at ', position, position.chromosome);
+              if (!position.chromosome)  return;
+//              console.log('clicked at ', position, position.chromosome);
             })
             .on('mousemove', function(position) {
-            });
+            })
+            .highlight(50000000, 600000000,
+                       {color: '#00FF00', opacity: 0.1})
+            .highlight('chr20', 0, 'chr22', 0,
+                       {color: '#FF0000', opacity: 0.1});
 
        d3.select('body')
            .datum(data)
            .call(kgram);
+
+       window.h3 = kgram.highlight({chromosome: 'chr15', bp: 0},
+                                   {chromosome: 'chr17', bp: 1000000});
+
+
+       window.kgram = kgram;
+
      });
     </script>
   </body>

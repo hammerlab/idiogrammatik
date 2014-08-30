@@ -17,7 +17,7 @@ The goal of project is to provide an easily navigable map of the human genome. T
 - [ ] Aesthetic customization (bands, cytobands) and tweaks.
 - [ ] Tooltip & data display, associated customization.
 - [ ] Range selection.
-- [ ] Range highlighting.
+- [X] Range highlighting.
 - [ ] ~~Ongoing: keep the README.md up-to-date.~~
 
 #### Example usage
@@ -52,17 +52,31 @@ idiogrammatik.load(function(err, data) {
       })
       .on('mouseover', function(position) {
         console.log(position);
-      });
+      })
       .on('drag', function(position) {
         console.log(position);
-      });
+      })
       .on('zoom', function(position) {
         console.log(position);
-      });
+      })
+      .higlight('chrX', 0, 'chrY', 0);
 
   d3.select('body')
       .datum(data)
       .call(kgram);
+
+
+  kgram.higlight({chromosome: 'chr15', bp: 0},
+                 {chromosome: 'chr17', bp: 1000000});
+  var h = kgram.higlight(0,
+                         2000000,
+                         {color: 'red', opacity: 0.5}); // Absolute basepairs.
+
+  // You can remove higlights by the return value of higlight() calls after the
+  // graph is drawn, or can remove whichever higlights you want with
+  // kgram.highlights()[n].remove()
+  h.remove();
+  // kgram.highlights().remove(); // remove all higlights;
 });
 ```
 

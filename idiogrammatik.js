@@ -10,10 +10,12 @@ var INCLUDED_CHROMOSOME_NAMES = ["chr1", "chr2", "chr3", "chr4", "chr5", "chr6",
                                  "chr18", "chr19", "chr20", "chr21", "chr22",
                                  "chrX", "chrY"];
 var IDIOGRAM_HEIGHT = 7;
+var HIGHLIGHT_HEIGHT = 21;
 var CENTROMERE_RADIUS = 1.5;
 var ARM_CLIP_RADIUS = 10;
 var INITIAL_SCALE = 1;
 var MAX_ZOOM_SCALE = 1000;
+var CHR_1 = 'chr1', CHR_Y = 'chrY';
 
 
 function _idiogrammatik() {
@@ -24,19 +26,19 @@ function _idiogrammatik() {
       fullXDomain, // used for scaling
       curScale, // used for scaling
       lastBp, // used for dragging
-      svg, chromosomes, listener, data,
+      deferred = [],
+      svg, chromosomes, listener, data, highlights = [], drawn = false,
       events = {'click': identity, 'mousemove': identity,
                 'drag': identity, 'zoom': identity,
                 'dragstart': identity, 'dragend': identity};
 
 
-  function draw(selection) {
+  function kgram(selection) {
     // Function which actually renders and begins the visualization.
     //
     // Closes around everything.
     data = selection.datum();
     window.data = data;
-
     xscale.domain([0, data.totalBases])
         .range([0, width - margin.left - margin.right]);
     fullXDomain = xscale.domain();
@@ -44,33 +46,72 @@ function _idiogrammatik() {
     svg = appendSvg(selection, width, height, margin),
     chromosomes = appendChromosomes(svg, data),
     listener = appendListenerBox(svg, width, height, margin);
-
     appendArmClips(chromosomes);
     initializeMouseListener(listener);
 
+    deferred.map(function(callable) { callable(); });
+
     redraw(curScale, data.totalBases/2, null, true);
+
+    drawn = true;
   }
 
+  highlights.remove = function() {
+    highlights.map(function(highlight) {
+      return highlight.remove;
+    }).map(function(r) { r() });
+  };
 
-  draw.width = function(_) {
+  kgram.width = function(_) {
     if (!arguments.length) return width;
     width = _;
-    return draw;
-  }
-  draw.height = function(_) {
+    return kgram;
+  };
+  kgram.height = function(_) {
     if (!arguments.length) return height;
     height = _;
-    return draw;
-  }
-  draw.margin = function(_) {
+    return kgram;
+  };
+  kgram.margin = function(_) {
     if (!arguments.length) return margin;
     margin = _;
-    return draw;
-  }
-  draw.on = function(type, callback) {
+    return kgram;
+  };
+  kgram.on = function(type, callback) {
     events[type] = callback || identity;
-    return draw;
-  }
+    return kgram;
+  };
+  kgram.highlight = function() {
+    if (!arguments.length) return highlights;
+    var args = Array.prototype.slice.call(arguments);
+
+    var futureHighlight = function() {
+      var highlight = parseHighlight(data, args);
+
+      highlight.remove = function() {
+        var idx = highlights.indexOf(highlight);
+        highlights.splice(idx, 1);
+        if (drawn) redraw(null, null, null, true);
+
+        return kgram;
+      }
+      highlights.push(highlight);
+
+      return highlight;
+    }
+
+    if (drawn) {
+      var result = futureHighlight();
+      redraw(null, null, null, true);
+      return result;
+    } else {
+      deferred.push(futureHighlight);
+      return kgram;
+    }
+  };
+  kgram.highlights = function() {
+    return highlights;
+  };
 
 
   function redraw(scale, pivot, shiftBp, forceDraw) {
@@ -107,6 +148,7 @@ function _idiogrammatik() {
       xscale.domain([xMin, xMax]);
       resizeArmClips(chromosomes, xscale);
       resizeBands(chromosomes, xscale);
+      renderHighlights(svg, data, highlights, xscale);
       reattachListenerToTop(svg);
     }
   }
@@ -159,7 +201,7 @@ function _idiogrammatik() {
     }
   }
 
-  return draw;
+  return kgram;
 }
 
 
@@ -335,9 +377,81 @@ function appendListenerBox(svg, width, height, margin) {
     .attr('height', height)
     .attr('x', -margin.left)
     .attr('y', -margin.top)
-    .attr('fill', 'blue')
     .attr('opacity', 0);
 }
+
+function renderHighlights(svg, data, highlights, xscale) {
+  var highlight = svg.selectAll('.highlight')
+      .data(highlights, highlightKey),
+      xMin = xscale.domain()[0],
+      xMax = xscale.domain()[1];
+
+  highlight
+    .enter().append('rect')
+      .attr('class', 'highlight')
+      .attr('height', HIGHLIGHT_HEIGHT);
+
+  highlight
+      .attr('x', function(d) {
+        return xscale(d.start);
+      })
+      .attr('y', -(HIGHLIGHT_HEIGHT/2)+(IDIOGRAM_HEIGHT/2))
+      .attr('width', function(d) {
+        return xscale(xMin + d.end - d.start);
+      })
+      .attr('fill', getter('color'))
+      .attr('opacity', getter('opacity'));
+
+  highlight.exit().remove();
+
+  function highlightKey(d) {
+    return d.chrStart + ':' + d.start + '-' + d.chrEnd + ':' + d.end;
+  }
+}
+
+function parseHighlight(data, args) {
+  // Parses a highlight object from an argument array.
+  //
+  // Or, if already parsed, returns the object.
+  // Returns {chrStart: chr, chrEnd: chr, start: numberInAbsoluteBp,
+  //          end: numberInAbsoluteBp, color: 'color', opacity: opacity}
+  if (!Array.isArray(args)) return args;
+
+  var chrStart, chrEnd, start, end, opts,
+      color = 'yellow', opacity = 0.2;
+
+  if (typeof args[0] === 'string') {
+    chrStart = chromosomeFromName(data, args[0]);
+    chrEnd = chromosomeFromName(data, args[2]);
+    start = args[1] + chrStart.start;
+    end = args[3] + chrEnd.start;
+    opts = args[4];
+  } else if (typeof args[0] === 'number') {
+    start = args[0];
+    end = args[1];
+    chrStart = chromosomeFromAbsoluteBp(data, start);
+    chrEnd = chromosomeFromAbsoluteBp(data, end);
+    opts = args[2];
+  } else {
+    chrStart = chromosomeFromName(data, args[0].chromosome);
+    chrEnd = chromosomeFromName(data, args[1].chromosome);
+    start = args[0].bp + chrStart.start;
+    end = args[1].bp + chrEnd.start;
+    opts = args[2];
+  }
+  if (opts && opts.color) color = opts.color;
+  if (opts && opts.opacity) opacity = opts.opacity;
+
+  return {
+    chrStart: chrStart,
+    chrEnd: chrEnd,
+    start: start,
+    end: end,
+    color: color,
+    opacity: opacity
+  }
+}
+
 
 
 function positionFrom(data, mouse, xscale) {
@@ -363,6 +477,12 @@ function bpFromMouse(mouse, xscale) {
 function chromosomeFromAbsoluteBp(data, bp) {
   return data.filter(function(chr) {
     return chr.start <= bp && chr.end > bp;
+  })[0];
+}
+
+function chromosomeFromName(data, name) {
+  return data.filter(function(chr) {
+    return chr.key === name;
   })[0];
 }
 
@@ -396,9 +516,6 @@ function cytobandsToChromosomes(cytobands) {
     chromosomes[i].center = chromosomes[i].pArm.end;
   }
   chromosomes.totalBases = totalBases;
-
-  // TODO(ihodes): Debug statement below:
-  window.c = chromosomes;
 
   return chromosomes;
 }
