@@ -59,24 +59,24 @@ idiogrammatik.load(function(err, data) {
       .on('zoom', function(position) {
         console.log(position);
       })
-      .higlight('chrX', 0, 'chrY', 0);
+      .highlight('chrX', 0, 'chrY', 0);
 
   d3.select('body')
       .datum(data)
       .call(kgram);
 
 
-  kgram.higlight({chromosome: 'chr15', bp: 0},
+  kgram.highlight({chromosome: 'chr15', bp: 0},
                  {chromosome: 'chr17', bp: 1000000});
-  var h = kgram.higlight(0,
+  var h = kgram.highlight(0,
                          2000000,
                          {color: 'red', opacity: 0.5}); // Absolute basepairs.
 
-  // You can remove higlights by the return value of higlight() calls after the
-  // graph is drawn, or can remove whichever higlights you want with
+  // You can remove highlights by the return value of highlight() calls after the
+  // graph is drawn, or can remove whichever highlights you want with
   // kgram.highlights()[n].remove()
   h.remove();
-  // kgram.highlights().remove(); // remove all higlights;
+  // kgram.highlights().remove(); // remove all highlights;
 });
 ```
 
