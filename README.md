@@ -3,7 +3,7 @@
 
 Idiogrammatik provides a small, fast, extensible idiogram (alternatively, [karyogram](http://en.wikipedia.org/wiki/Karyogram)) that can be embedded in any webpage.
 
-![](http://cl.ly/image/212O3M0h1I2M/Screen%20Recording%202014-08-29%20at%2004.57%20PM.gif)
+![](http://cl.ly/image/3c2p3p3S0942/Screen%20Recording%202014-08-30%20at%2005.22%20PM.gif)
 
 The goal of project is to provide an easily navigable map of the human genome. The map should be speedy, intuitive, and provide enough hooks in and events out to handle most reasonable tasks related to navigating a genome. The current genome used is GRCh38, with staining mimicking Giemsa cytoband staining in order to provide important visuospacial orientation.
 
