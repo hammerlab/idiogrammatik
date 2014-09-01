@@ -18,7 +18,7 @@ The goal of project is to provide an easily navigable map of the human genome. T
 - [ ] Tooltip & data display, associated customization.
 - [ ] Programamtic pan and zoom.
 - [X] Hooks into the SVG (custom elements, etc.).
-- [ ] Range selection.
+- [X] Range selection.
 - [X] Range highlighting.
 - [ ] ~~Ongoing: keep the README.md up-to-date.~~
 
@@ -108,3 +108,38 @@ kgram.redraw(function(svg, scale) {
 ```
 
 The `position` object passed to event callbacks has the following properties: `absoluteBp`, which is the base pair from the offset of the genome, `relativeBp` which is the base pair from the offset of the chromosome, `chromosome` which is the chromosome object at that base pair position, and `fmtAbsoluteBp` & `fmtRelativeBp` which is the formatted string version of `absoluteBp` and `relativeBp`, respectively.
+
+###### Selecting Ranges
+
+It's easy enough to select and highlight ranges of the genome by extending the kgram itself. The below code shows an example using the highlight API and events. In this manner, ranges can be selected by shift-clicking the region start and end-points.
+
+```javascript
+idiogrammatik.load(function(err, data) {
+  var lastPos = null, selection = null, shifted = false;
+
+  window.onkeydown = function(e) { if (e.shiftKey) shifted = true; }
+  window.onkeyup = function(e) { if (shifted) shifted = false; }
+
+  var kgram = idiogrammatik()
+    .on('click', function(position, kgram) {
+      if (!position.chromosome)  return;
+
+      if (selection) {
+        selection.remove();
+        selection = null;
+        lastPos = null;
+      }
+
+      if (shifted) {
+        if (lastPos) {
+          if (lastPos.absoluteBp < position.absoluteBp) {
+            selection = kgram.highlight(lastPos.absoluteBp, position.absoluteBp);
+          } else {
+            selection = kgram.highlight(position.absoluteBp, lastPos.absoluteBp);
+          }
+        }
+        lastPos = position;
+      }
+  });
+});
+```

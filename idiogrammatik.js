@@ -86,7 +86,7 @@ function _idiogrammatik() {
         var idx = highlights.indexOf(highlight);
         highlights.splice(idx, 1);
         if (drawn) redraw(null, null, null, true);
-
+        highlight.remove = null;
         return kgram;
       }
       highlights.push(highlight);
@@ -113,7 +113,7 @@ function _idiogrammatik() {
     return xscale;
   };
   kgram.redraw = function(_) {
-    if (!arguments.length) return kgram;
+    if (!arguments.length) return customRedraw;
     customRedraw = _;
     return kgram;
   };
@@ -190,6 +190,7 @@ function _idiogrammatik() {
           .on('dragend', dispatchEvent('dragend'))
           .on('drag', drag);
 
+    window.z = zoomer;
     listener
         .on('mousemove', dispatchEvent('mousemove'))
         .on('mousedown', dispatchEvent('mousedown'))
@@ -202,18 +203,18 @@ function _idiogrammatik() {
       var position = positionFrom(data, d3.mouse(this), xscale);
       if (!position.chromosome) return;
       redraw(d3.event.scale, position.absoluteBp);
-      events['zoom'](position);
+      events['zoom'](position, kgram);
     }
     function drag() {
       var position = positionFrom(data, d3.mouse(this), xscale);
       redraw(null, position.absoluteBp, position.absoluteBp - lastBp);
-      events['drag'](position);
+      events['drag'](position, kgram);
     }
     function dispatchEvent(type) {
       return function() {
         if (events[type]) {
           var position = positionFrom(data, d3.mouse(this), xscale);
-          events[type](position);
+          events[type](position, kgram);
         }
       }
     }

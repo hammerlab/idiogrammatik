@@ -14,14 +14,35 @@
      idiogrammatik.load(function(err, data) {
        if (err)  return console.log('error: ', err);
 
+       var lastPos = null, selection = null, shifted = false;
+
+       window.onkeydown = function(e) { if (e.shiftKey) shifted = true; }
+       window.onkeyup = function(e) { if (shifted) shifted = false; }
+
        var kgram = idiogrammatik()
-            .width(1000)
-            .height(85)
-            .on('click', function(position) {
+            .on('click', function(position, kgram) {
               if (!position.chromosome)  return;
-//              console.log('clicked at ', position, position.chromosome);
+
+              if (selection) {
+                selection.remove();
+                selection = null;
+                lastPos = null;
+              }
+
+              if (shifted) {
+                if (lastPos) {
+                  if (lastPos.absoluteBp < position.absoluteBp) {
+                    selection = kgram.highlight(lastPos.absoluteBp, position.absoluteBp);
+                  } else {
+                    selection = kgram.highlight(position.absoluteBp, lastPos.absoluteBp);
+                  }
+                }
+                lastPos = position;
+              }
+
+              console.log(position);
             })
-            .on('mousemove', function(position) {
+            .on('mousemove', function(position, kgram) {
             })
             .highlight(50000000, 600000000,
                        {color: '#00FF00', opacity: 0.1})
