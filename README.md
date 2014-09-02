@@ -1,11 +1,17 @@
 ### Idiogrammatik
 ###### An extensible, embeddable karyogram for the browser.
 
-Idiogrammatik provides a small, fast, extensible idiogram (alternatively, [karyogram](http://en.wikipedia.org/wiki/Karyogram)) that can be embedded in any webpage.
+Idiogrammatik provides a small, fast, extensible idiogram (alternatively,
+[karyogram](http://en.wikipedia.org/wiki/Karyogram)) that can be embedded in any
+webpage.
 
 ![](http://cl.ly/image/3c2p3p3S0942/Screen%20Recording%202014-08-30%20at%2005.22%20PM.gif)
 
-The goal of project is to provide an easily navigable map of the human genome. The map should be speedy, intuitive, and provide enough hooks in and events out to handle most reasonable tasks related to navigating a genome. The current genome used is GRCh38, with staining mimicking Giemsa cytoband staining in order to provide important visuospacial orientation.
+The goal of project is to provide an easily navigable map of the human
+genome. The map should be speedy, intuitive, and provide enough hooks in and
+events out to handle most reasonable tasks related to navigating a genome. The
+current genome used is GRCh38, with staining mimicking Giemsa cytoband staining
+in order to provide important visuospacial orientation.
 
 #### Roadmap
 
@@ -14,11 +20,11 @@ The goal of project is to provide an easily navigable map of the human genome. T
 - [X] d3-eqsue API.
 - [X] Better events: pass more information in the `position` argument to event handlers.
 - [ ] Display data (line chart, bar chart, box plot, tbd) alongside the kareogram.
-- [ ] Aesthetic customization (bands, cytobands) and tweaks.
-- [ ] Tooltip & data display, associated customization.
+- [X] Aesthetic customization (bands, cytobands) and tweaks.
+- [X] (can do via hooks) Tooltip display, associated customization.
 - [ ] Programamtic pan and zoom.
 - [X] Hooks into the SVG (custom elements, etc.).
-- [X] Range selection.
+- [X] (can do via hooks) Range selection.
 - [X] Range highlighting.
 - [ ] ~~Ongoing: keep the README.md up-to-date.~~
 
@@ -37,9 +43,12 @@ idiogrammatik.load(function(err, data) {
 });
 ```
 
-Note the `load` function, which asynchronously loads the cytobands data (and caches it, so subsequent calls to load are instantaneous).
+Note the `load` function, which asynchronously loads the cytobands data (and
+caches it, so subsequent calls to load are instantaneous).
 
-The below code demonstrates all of the current functionality:
+###### Extensive customization and event-driven hooks
+
+The below code demonstrates some of the current functionality:
 
 ```javascript
 idiogrammatik.load(function(err, data) {
@@ -61,28 +70,45 @@ idiogrammatik.load(function(err, data) {
       .on('zoom', function(position) {
         console.log(position);
       })
-      .highlight('chrX', 0, 'chrY', 0);
+      .highlight('chrX', 0, 'chrY', 0)
+      .highlightHeight(25)
+      .centromereRadius(0) // removes the centromere dots.
+      .idiogramHeight(11);
 
   d3.select('body')
       .datum(data)
       .call(kgram);
 
 
+  // We can also add highlights after the idiogram has been displayed:
   kgram.highlight({chromosome: 'chr15', bp: 0},
                  {chromosome: 'chr17', bp: 1000000});
+
   var h = kgram.highlight(0,
                          2000000,
                          {color: 'red', opacity: 0.5}); // Absolute basepairs.
 
-  // You can remove highlights by the return value of highlight() calls after the
+  // We can remove highlights wirh the return value of highlight() calls after the
   // graph is drawn, or can remove whichever highlights you want with
   // kgram.highlights()[n].remove()
   h.remove();
-  // kgram.highlights().remove(); // remove all highlights;
+  kgram.highlights().remove(); // remove all highlights;
+
+  // We can get the position information of a certain base pair like so:
+  kgram.positionFromAbsoluteBp(1500000000);
+  // { absoluteBp: 1500000000, chromosome: {key: 'chr8', start: ..., ...},
+  //   fmtAbsoluteBp: "1,500,000,000",fmtRelativeBp: "108,649,724", relativeBp: 108649724 }
+
+  // Or, similarly, from a relative position:
+  kgram.positionFromRelativeBp('chr8', 108649724) // -> the same result as above
 });
 ```
 
-If you wanted to add elements to the graph and have them update when the graph redraws, you might do something like the below (which adds red circles to the end of each chromosome):
+###### Custom redraw functionality
+
+If you wanted to add elements to the graph and have them update when the graph
+redraws, you might do something like the below (which adds red circles to the
+end of each chromosome):
 
 ```javascript
 // svg is the d3 selection of the svg this karyogram belongs to.
@@ -107,11 +133,19 @@ kgram.redraw(function(svg, scale) {
 });
 ```
 
-The `position` object passed to event callbacks has the following properties: `absoluteBp`, which is the base pair from the offset of the genome, `relativeBp` which is the base pair from the offset of the chromosome, `chromosome` which is the chromosome object at that base pair position, and `fmtAbsoluteBp` & `fmtRelativeBp` which is the formatted string version of `absoluteBp` and `relativeBp`, respectively.
+The `position` object passed to event callbacks has the following properties:
+`absoluteBp`, which is the base pair from the offset of the genome, `relativeBp`
+which is the base pair from the offset of the chromosome, `chromosome` which is
+the chromosome object at that base pair position, and `fmtAbsoluteBp` &
+`fmtRelativeBp` which is the formatted string version of `absoluteBp` and
+`relativeBp`, respectively.
 
-###### Selecting Ranges
+###### Selecting ranges
 
-It's easy enough to select and highlight ranges of the genome by extending the kgram itself. The below code shows an example using the highlight API and events. In this manner, ranges can be selected by shift-clicking the region start and end-points.
+It's easy enough to select and highlight ranges of the genome by extending the
+kgram itself. The below code shows an example using the highlight API and
+events. In this manner, ranges can be selected by shift-clicking the region
+start and end-points.
 
 ```javascript
 idiogrammatik.load(function(err, data) {
@@ -143,3 +177,6 @@ idiogrammatik.load(function(err, data) {
   });
 });
 ```
+
+In a similar manner, tooltips can be drawn on the karyogram (using the
+'mouseover' event instead of the 'click' event.)
