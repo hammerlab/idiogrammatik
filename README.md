@@ -151,28 +151,25 @@ start and end-points.
 idiogrammatik.load(function(err, data) {
   var lastPos = null, selection = null, shifted = false;
 
-  window.onkeydown = function(e) { if (e.shiftKey) shifted = true; }
-  window.onkeyup = function(e) { if (shifted) shifted = false; }
+  window.onkeydown = function(e) { if (e.shiftKey) shifted = true; };
+  window.onkeyup = function(e) { if (shifted && !e.shiftKey) { shifted = false; lastPos = null; } };
 
   var kgram = idiogrammatik()
     .on('click', function(position, kgram) {
-      if (!position.chromosome)  return;
-
-      if (selection) {
-        selection.remove();
-        selection = null;
-        lastPos = null;
-      }
+      if (!position.chromosome) return;
 
       if (shifted) {
-        if (lastPos) {
-          if (lastPos.absoluteBp < position.absoluteBp) {
-            selection = kgram.highlight(lastPos.absoluteBp, position.absoluteBp);
-          } else {
-            selection = kgram.highlight(position.absoluteBp, lastPos.absoluteBp);
-          }
+        if (selection) {
+          selection.remove();
+          selection = null;
         }
-        lastPos = position;
+
+        if (lastPos) {
+          selection = kgram.highlight(lastPos, position);
+          lastPos = null;
+        } else {
+          lastPos = position;
+        }
       }
   });
 });
