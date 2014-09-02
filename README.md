@@ -21,10 +21,10 @@ in order to provide important visuospacial orientation.
 - [X] Better events: pass more information in the `position` argument to event handlers.
 - [ ] Display data (line chart, bar chart, box plot, tbd) alongside the kareogram.
 - [X] Aesthetic customization (bands, cytobands) and tweaks.
-- [X] (can do via hooks) Tooltip display, associated customization.
+- [X] Tooltip display, associated customization (can do via hooks).
 - [ ] Programamtic pan and zoom.
 - [X] Hooks into the SVG (custom elements, etc.).
-- [X] (can do via hooks) Range selection.
+- [X] Range selection. (can do via hooks).
 - [X] Range highlighting.
 - [ ] ~~Ongoing: keep the README.md up-to-date.~~
 
