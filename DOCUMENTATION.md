@@ -229,8 +229,13 @@ And `kgram`, a reference to the current kgram.
 
 If `redrawFunction` is passed, sets it to be called every time the karyogram is
 redrawn. `redrawFunction` is called after all other redrawing is done, and is
-passed the d3 `svg` selection and the current `xscale`. If not, forces a
+passed the D3 `svg` selection and the current `xscale`. If not, forces a
 redrawing of the karyogram.
+
+* kgram.**zoomBehavior**()
+
+Returns the D3 zoom behvaior. Useful for temporarily disabling or modifying the
+behavior.
 
 ##### Utility
 
@@ -268,34 +273,42 @@ start and end-points.
 
 ```javascript
 idiogrammatik.load(function(err, data) {
-  var lastPos = null, selection = null, shifted = false;
+  var firstPos = null,
+      selection = {},
+      shifted = false;
 
-  window.onkeydown = function(e) { if (e.shiftKey) shifted = true; };
+  window.onkeydown = function(e) {
+    if (e.shiftKey) {
+      document.getElementsByTagName("body")[0].style.cursor="text";
+      shifted = true;
+      try {
+        kgram.zoomBehavior().x(null);
+      } catch(err) {}
+    }
+  };
   window.onkeyup = function(e) {
+    document.getElementsByTagName("body")[0].style.cursor="default";
     if (shifted && !e.shiftKey) {
       shifted = false;
-      lastPos = null;
+      kgram.zoomBehavior().x(kgram.scale());
     }
   };
 
   var kgram = idiogrammatik()
-    .on('click', function(position, kgram) {
-      if (!position.chromosome) return;
-
-      if (shifted) {
-        if (selection) {
-          selection.remove();
-          selection = null;
-        }
-
-        if (lastPos) {
-          selection = kgram.highlight(lastPos, position);
-          lastPos = null;
-        } else {
-          lastPos = position;
-        }
-      }
-  });
+      .on('dragstart', function(position, kgram) {
+        if (!position.chromosome || !shifted) return;
+        firstPos = position;
+      })
+      .on('drag', function(position, kgram) {
+        if (!position.chromosome || !shifted) return;
+        if (selection.remove) selection.remove();
+        selection = kgram.highlight(firstPos, position);
+      })
+      .on('dragend', function(position, kgram) {
+        if (!position.chromosome || !shifted) return;
+        if (selection.remove) selection.remove();
+        selection = kgram.highlight(firstPos, position);
+      });
 });
 ```
 

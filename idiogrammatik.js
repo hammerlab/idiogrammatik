@@ -36,10 +36,7 @@ function _idiogrammatik() {
       armClipRadius = ARM_CLIP_RADIUS,
       zoom, // Zoom behavior reference.
       // Closed-over customizable vars:
-      svg, chromosomes, listener, data, highlights = [],
-      events = {'click': identity, 'mousemove': identity,
-                'drag': identity, 'zoom': identity,
-                'dragstart': identity, 'dragend': identity};
+      svg, chromosomes, listener, data, highlights = [], events = {};
 
   function kgram(selection) {
     // Function which actually renders and begins the visualization.
@@ -179,6 +176,9 @@ function _idiogrammatik() {
   kgram.highlights = function() {
     return highlights;
   };
+  kgram.zoomBehavior = function() {
+    return zoom;
+  }
 
 
   highlights.remove = function() {
@@ -218,23 +218,29 @@ function _idiogrammatik() {
           .on('zoomstart', dispatchEvent('zoomstart'))
           .on('zoomend', dispatchEvent('zoomend'));
 
+    var drag = d3.behavior.drag()
+          .on('drag', dispatchEvent('drag'))
+          .on('dragstart', dispatchEvent('dragstart'))
+          .on('dragend', dispatchEvent('dragend'));
+
     listener
         .on('mousemove', dispatchEvent('mousemove'))
         .on('mousedown', dispatchEvent('mousedown'))
         .on('mouseup', dispatchEvent('mouseup'))
         .on('click', dispatchEvent('click'))
-        .call(zoom);
+        .call(zoom)
+        .call(drag);
 
     function onzoom() {
       var position = positionFrom(data, d3.mouse(this), xscale);
       redraw();
-      events['zoom'](position, kgram);
+      events['zoom'] && events['zoom'](position, kgram);
     }
     function dispatchEvent(type) {
       return function() {
         if (events[type]) {
           var position = positionFrom(data, d3.mouse(this), xscale);
-          events[type](position, kgram);
+          events[type] && events[type](position, kgram);
         }
       }
     }

@@ -5,7 +5,7 @@
 
     <link rel="stylesheet" href="idiogrammatik.css">
 
-    <script src="d3.min.js"></script>
+    <script src="d3.js"></script>
     <script src="idiogrammatik.js"></script>
   </head>
 
@@ -16,32 +16,41 @@
      idiogrammatik.load(function(err, data) {
        if (err)  return console.log('error: ', err);
 
-       var lastPos = null,
-           selection = null,
+       var firstPos = null,
+           selection = {},
            shifted = false;
 
-       window.onkeydown = function(e) { if (e.shiftKey) shifted = true; };
+       window.onkeydown = function(e) {
+         if (e.shiftKey) {
+           document.getElementsByTagName("body")[0].style.cursor="text";
+           shifted = true;
+           try {
+             kgram.zoomBehavior().x(null);
+           } catch(err) {}
+         }
+       };
        window.onkeyup = function(e) {
+         document.getElementsByTagName("body")[0].style.cursor="default";
          if (shifted && !e.shiftKey) {
            shifted = false;
-           lastPos = null;
+           kgram.zoomBehavior().x(kgram.scale());
          }
        };
 
        window.kgram = idiogrammatik()
-            .on('click', function(position, kgram) {
-              if (!position.chromosome) return;
-
-              if (shifted) {
-                if (selection && selection.remove) selection.remove();
-                if (lastPos) {
-                  selection = kgram.highlight(lastPos, position);
-                  console.log(lastPos, position);
-                  lastPos = null;
-                } else {
-                  lastPos = position;
-                }
-              }
+            .on('dragstart', function(position, kgram) {
+               if (!position.chromosome || !shifted) return;
+               firstPos = position;
+            })
+            .on('drag', function(position, kgram) {
+               if (!position.chromosome || !shifted) return;
+               if (selection.remove) selection.remove();
+               selection = kgram.highlight(firstPos, position);
+            })
+            .on('dragend', function(position, kgram) {
+               if (!position.chromosome || !shifted) return;
+               if (selection.remove) selection.remove();
+               selection = kgram.highlight(firstPos, position);
             });
 
        d3.select('body')
