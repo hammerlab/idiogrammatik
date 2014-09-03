@@ -128,7 +128,7 @@ Asynchronously loads the cytoband data [cytoband.tsv](cytoband.tsv) and calls `c
 
 Constructs a new idiogrammatik object. The below functions work on the resultant object, called `kgram`.
 
-###### Configuration
+##### Configuration
 
 Configuration must occur before the karyogram is called and drawn for the first
 time.
@@ -176,7 +176,7 @@ rendered. Otherwise, returns the radius. *Default is 1.5.*
 If a radius is provided, sets the radius of the pinched chromosome arms to be
 rendered. Otherwise, returns the radius. *Default is 10.*
 
-###### Hooks
+##### Hooks
 
 * kgram.**svg**()
 
@@ -232,7 +232,7 @@ redrawn. `redrawFunction` is called after all other redrawing is done, and is
 passed the d3 `svg` selection and the current `xscale`. If not, forces a
 redrawing of the karyogram.
 
-###### Utility
+##### Utility
 
 * kgram.**positionFromAbsolute**(bp)
 
@@ -244,7 +244,7 @@ position.
 Returns a position object (as described above) from a given relative base
 position within a given chromosome (described by name, e.g. "chr22" or "chrX").
 
-###### Highlights (Management)
+##### Highlights (Management)
 
 * kgram.**highlights**()
 
@@ -259,7 +259,7 @@ them).
 
 ### Examples & Recipes
 
-###### Selecting ranges
+##### Selecting ranges
 
 It's easy enough to select and highlight ranges of the genome by extending the
 kgram itself. The below code shows an example using the highlight API and
@@ -304,7 +304,7 @@ In a similar manner, tooltips can be drawn on the karyogram (using the
 the `kgram.svg()` object).
 
 
-###### Custom redraw functionality
+##### Custom redraw functionality
 
 If you wanted to add elements to the graph and have them update when the graph
 redraws, you might do something like the below (which adds labels above each
@@ -332,7 +332,7 @@ kgram.redraw(function(svg, scale) {
 });
 ```
 
-###### Extensive customization and event-driven hooks
+##### Extensive customization and event-driven hooks
 
 The below code demonstrates some of the current functionality:
 
