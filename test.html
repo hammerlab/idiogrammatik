@@ -10,6 +10,8 @@
   </head>
 
   <body>
+    <p>Shift-click to highlight regions. <code>kgram</code> is available in the global namespace to add highlights to, extend its functionality, etc..</p>
+    <p><pre><code>kgram.highlight('chr2', 0, 'chr4', 0, {color: 'red', opacity: 0.5}); // for example</code></pre></p>
     <script>
      idiogrammatik.load(function(err, data) {
        if (err)  return console.log('error: ', err);
@@ -21,40 +23,40 @@
        window.onkeydown = function(e) { if (e.shiftKey) shifted = true; };
        window.onkeyup = function(e) { if (shifted && !e.shiftKey) { shifted = false; lastPos = null; } };
 
-       var kgram = idiogrammatik()
+       window.kgram = idiogrammatik()
             .on('click', function(position, kgram) {
-              if (!position.chromosome)  return;
+              if (!position.chromosome) return;
 
               if (shifted) {
-                if (selection) {
-                  selection.remove();
-                  selection = null;
-                }
-
+                if (selection && selection.remove) selection.remove();
                 if (lastPos) {
                   selection = kgram.highlight(lastPos, position);
+                  console.log(lastPos, position);
                   lastPos = null;
                 } else {
                   lastPos = position;
                 }
               }
             })
-            .on('mousemove', function(position, kgram) {
-            })
-            .highlight(50000000, 600000000,
-                       {color: '#00FF00', opacity: 0.1})
-            .highlightHeight(25);
+            .redraw(function(svg, scale) {
+              var data = svg.selectAll('.chromosome').data();
+
+              svg.selectAll('.cname')
+                  .data(data, function(d) { return d.key; })
+                .enter().append('text')
+                  .attr('class', 'cname')
+                  .attr('y', -9)
+                  .text(function(d) { return d.key; });
+
+              svg.selectAll('.cname')
+                  .attr('x', function(d) { return scale(d.start); });
+            });
 
        d3.select('body')
            .datum(data)
            .call(kgram);
 
-       window.h3 = kgram.highlight({chromosome: 'chr15', bp: 0},
-                                   {chromosome: 'chr17', bp: 1000000});
-
-
-       window.kgram = kgram;
-
+       var highlightChr4 = kgram.highlight('chr4', 0, 'chr5', 0, {color: 'blue'});
      });
     </script>
   </body>

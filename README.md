@@ -13,21 +13,6 @@ events out to handle most reasonable tasks related to navigating a genome. The
 current genome used is GRCh38, with staining mimicking Giemsa cytoband staining
 in order to provide important visuospacial orientation.
 
-#### Roadmap
-
-- [X] Speed up panning (fps to 30 on a MBA).
-- [X] Zoom.
-- [X] d3-eqsue API.
-- [X] Better events: pass more information in the `position` argument to event handlers.
-- [ ] Display data (line chart, bar chart, box plot, tbd) alongside the kareogram.
-- [X] Aesthetic customization (bands, cytobands) and tweaks.
-- [X] Tooltip display, associated customization (can do via hooks).
-- [ ] Programamtic pan and zoom.
-- [X] Hooks into the SVG (custom elements, etc.).
-- [X] Range selection. (can do via hooks).
-- [X] Range highlighting.
-- [ ] ~~Ongoing: keep the README.md up-to-date.~~
-
 #### Example usage
 The minimum viable example:
 
@@ -101,6 +86,10 @@ idiogrammatik.load(function(err, data) {
 
   // Or, similarly, from a relative position:
   kgram.positionFromRelativeBp('chr8', 108649724) // -> the same result as above
+
+  // We can zoom to a particular position with kgram.zoom(abs1, abs2);
+  // e.g.
+  kgram.zoom(1400000000, 1650000000);
 });
 ```
 

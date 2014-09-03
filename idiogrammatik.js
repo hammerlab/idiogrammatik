@@ -13,8 +13,6 @@ var IDIOGRAM_HEIGHT = 7;
 var HIGHLIGHT_HEIGHT = 21;
 var CENTROMERE_RADIUS = 1.5;
 var ARM_CLIP_RADIUS = 10;
-var INITIAL_SCALE = 1;
-var MAX_ZOOM_SCALE = 1000;
 var CHR_1 = 'chr1', CHR_Y = 'chrY';
 
 
@@ -22,24 +20,21 @@ function _idiogrammatik() {
   var width = 800,
       height = 100,
       margin = {top: 50, bottom: 20, left: 20, right: 50},
-      xscale = d3.scale.linear(), // scale to map x-pos to base pair
-      fullXDomain, // used for scaling
-      curScale = INITIAL_SCALE, // used for scaling
-      lastBp, // used for dragging
-      deferred = [], // list of functions to be called upon draw
-      customRedraw = identity, // additional function to be called upon redraw
-      drawn = false, // true once the kgram has been called once (so, drawn)
+      xscale = d3.scale.linear(), // Scale to map x-pos to base pair.
+      deferred = [], // List of functions to be called upon draw.
+      customRedraw = identity, // Additional function to be called upon redraw.
+      drawn = false, // True once the kgram has been called once (so, drawn).
       // Aesthetics:
       bandStainer = gstainFiller,
       idiogramHeight = IDIOGRAM_HEIGHT,
       centromereRadius = CENTROMERE_RADIUS,
       highlightHeight = HIGHLIGHT_HEIGHT,
+      zoom, // Zoom behavior reference.
       // Closed-over customizable vars:
       svg, chromosomes, listener, data, highlights = [],
       events = {'click': identity, 'mousemove': identity,
                 'drag': identity, 'zoom': identity,
                 'dragstart': identity, 'dragend': identity};
-
 
   function kgram(selection) {
     // Function which actually renders and begins the visualization.
@@ -48,7 +43,6 @@ function _idiogrammatik() {
     data = selection.datum();
     xscale.domain([0, data.totalBases])
         .range([0, width - margin.left - margin.right]);
-    fullXDomain = xscale.domain();
 
     svg = appendSvg(selection, width, height, margin),
     chromosomes = appendChromosomes(svg, data, bandStainer, idiogramHeight),
@@ -58,7 +52,7 @@ function _idiogrammatik() {
 
     deferred.map(function(callable) { callable(); });
 
-    redraw(curScale, data.totalBases/2, null, true);
+    redraw();
 
     drawn = true;
   }
@@ -75,6 +69,73 @@ function _idiogrammatik() {
   kgram.margin = function(_) {
     if (!arguments.length) return margin;
     margin = _;
+    return kgram;
+  };
+  kgram.highlights = function() {
+    return highlights;
+  };
+  kgram.svg = function() {
+    return svg;
+  };
+  kgram.scale = function() {
+    return xscale;
+  };
+
+  // Aesthetics:
+  kgram.stainer = function(_) {
+    if (!arguments.length) return bandStainer;
+    bandStainer = _;
+    return kgram;
+  };
+  kgram.highlightHeight = function(_) {
+    if (!arguments.length) return highlightHeight;
+    highlightHeight = _;
+    return kgram;
+  };
+  kgram.idiogramHeight= function(_) {
+    if (!arguments.length) return idiogramHeight;
+    idiogramHeight = _;
+    return kgram;
+  }
+  kgram.centromereRadius = function(_) {
+    if (!arguments.length) return centromereRadius;
+    centromereRadius = _;
+    return kgram;
+  };
+
+  // Utilities:
+  kgram.positionFromAbsoluteBp = function(bp) {
+    // Returns the position at a given absolute base pair.
+    if (arguments.length !== 1)
+      throw "Must pass argument `absolute bp position`.";
+    return positionFromAbsoluteBp(data, bp);
+  };
+  kgram.positionFromRelative = function(name, bp) {
+    // Returns the position at a relative base position within a chromosome
+    // given by the string name.
+    if (arguments.length !== 2)
+      throw "Must pass arguments `name of chromosome` and `relative bp position`.";
+    var chr = chromosomeFromName(data, name);
+    bp = chr.start + bp;
+    return positionFromAbsoluteBp(data, bp);
+  };
+
+  // Interact
+  kgram.zoom = function(domain) {
+    if (arguments.length !== 1)
+      throw "Must pass argument `[domainStart, domainEnd]`.";
+    d3.transition().tween('zoom', function() {
+      var interpolatedX = d3.interpolate(xscale.domain(), domain);
+      return function(t) {
+        zoom.x(xscale.domain(interpolatedX(t)));
+        redraw();
+      };
+    });
+    return kgram;
+  };
+  kgram.redraw = function(_) {
+    if (!arguments.length) return redraw();
+    customRedraw = _;
     return kgram;
   };
   kgram.on = function(type, callback) {
@@ -109,65 +170,6 @@ function _idiogrammatik() {
       return kgram;
     }
   };
-  kgram.highlights = function() {
-    return highlights;
-  };
-  kgram.svg = function() {
-    return svg;
-  };
-  kgram.scale = function() {
-    return xscale;
-  };
-  kgram.redraw = function(_) {
-    if (!arguments.length) return customRedraw;
-    customRedraw = _;
-    return kgram;
-  };
-  kgram.forceRedraw = function() {
-    redraw(null, null, null, true);
-    // if (!arguments.length) redraw(null, null, null, true);
-    // else redraw.apply(this, Array.prototype.slice.call(arguments));
-  };
-
-  // Aesthetics:
-  kgram.stainer = function(_) {
-    if (!arguments.length) return bandStainer;
-    bandStainer = _;
-    return kgram;
-  };
-  kgram.highlightHeight = function(_) {
-    if (!arguments.length) return highlightHeight;
-    highlightHeight = _;
-    return kgram;
-  };
-  kgram.idiogramHeight= function(_) {
-    if (!arguments.length) return idiogramHeight;
-    idiogramHeight = _;
-    return kgram;
-  }
-  kgram.centromereRadius = function(_) {
-    if (!arguments.length) return centromereRadius;
-    centromereRadius = _;
-    return kgram;
-  };
-
-  // Utilities:
-  kgram.positionFromAbsoluteBp = function(bp) {
-    // Returns the position at a given absolute base pair.
-    if (arguments.length != 1)
-      throw "Must pass argument `absolute bp position`.";
-    return positionFromAbsoluteBp(data, bp);
-  };
-  kgram.positionFromRelative = function(name, bp) {
-    // Returns the position at a relative base position within a chromosome
-    // given by the string name.
-    if (arguments.length !== 2)
-      throw "Must pass arguments `name of chromosome` and `relative bp position`.";
-    var chr = chromosomeFromName(data, name);
-    bp = chr.start + bp;
-    return positionFromAbsoluteBp(data, bp);
-  };
-
 
   highlights.remove = function() {
     // This allows us to remove all highlights at once from the highlight array
@@ -178,84 +180,43 @@ function _idiogrammatik() {
   };
 
 
-  function redraw(scale, pivot, shiftBp, forceDraw) {
+  function redraw() {
     // Redraws (mostly this means repositions and changes the width of chromosomes
-    // and their bands) the karyogram, taking into account the difference in scale
-    // and the number of base pairs (bp) the karyogram should shift.
+    // and their bands) the karyogram.
     //
-    // Closes around xscale, curScale.
-    var chromosomes = svg.selectAll('.chromosome'),
-        xMin = xscale.domain()[0],
-        xMax = xscale.domain()[1];
+    // Closes around xscale.
+    var chromosomes = svg.selectAll('.chromosome');
 
-    if (scale) { // then we should see if we need to scale up or down
-      if (!curScale) {
-        // pass (we haven't yet initialized curScale)
-      } else if (curScale < scale) { // scaling up
-        var tscale = scale / curScale;
-        xMin = pivot - ((pivot - xscale.domain()[0]) / tscale);
-        xMax = ((xscale.domain()[1] - pivot) / tscale) + pivot;
-      } else if (curScale > scale) { // scaling down
-        var tscale = curScale / scale;
-        xMin = pivot - ((pivot - xscale.domain()[0]) * tscale);
-        xMax = ((xscale.domain()[1] - pivot) * tscale) + pivot;
-      }
-    }
-    curScale = scale;
-
-    if (shiftBp) {
-      xMin -= shiftBp;
-      xMax -= shiftBp;
-    }
-
-    if (shiftBp || scale || forceDraw) {
-      xscale.domain([xMin, xMax]);
-      resizeArmClips(chromosomes, xscale);
-      resizeBands(chromosomes, xscale, idiogramHeight, centromereRadius);
-      renderHighlights(svg, data, highlights, xscale, idiogramHeight, highlightHeight);
-      reattachListenerToTop(svg);
-    }
-
+    resizeArmClips(chromosomes, xscale);
+    resizeBands(chromosomes, xscale, idiogramHeight, centromereRadius);
+    renderHighlights(svg, data, highlights, xscale, idiogramHeight, highlightHeight);
     customRedraw(svg, xscale);
+    reattachListenerToTop(svg);
+
+    return kgram;
   }
 
 
   function initializeMouseListener(listener) {
     //
-    // Closes around xscale, lastBp.
-    var zoomer = d3.behavior.zoom()
-          .scaleExtent([1, MAX_ZOOM_SCALE])
-          .on('zoom', zoom)
+    // Closes around xscale
+    zoom = d3.behavior.zoom()
+          .x(xscale)
+          .on('zoom', onzoom)
           .on('zoomstart', dispatchEvent('zoomstart'))
-          .on('zoomend', dispatchEvent('zoomend')),
-        dragger = d3.behavior.drag()
-          .on('dragstart', function() {
-            var position = positionFrom(data, d3.mouse(this), xscale);
-            lastBp = position.absoluteBp;
-            if (events['dragstart'])
-              events['dragstart'](position);
-          })
-          .on('dragend', dispatchEvent('dragend'))
-          .on('drag', drag);
+          .on('zoomend', dispatchEvent('zoomend'));
 
     listener
         .on('mousemove', dispatchEvent('mousemove'))
         .on('mousedown', dispatchEvent('mousedown'))
         .on('mouseup', dispatchEvent('mouseup'))
         .on('click', dispatchEvent('click'))
-        .call(zoomer)
-        .call(dragger);
+        .call(zoom);
 
-    function zoom() {
+    function onzoom() {
       var position = positionFrom(data, d3.mouse(this), xscale);
-      if (!position.chromosome) return;
-      redraw(d3.event.scale, position.absoluteBp);
+      redraw();
       events['zoom'](position, kgram);
-    }
-    function drag() {
-      var position = positionFrom(data, d3.mouse(this), xscale);
-      redraw(null, position.absoluteBp, position.absoluteBp - lastBp);
-      events['drag'](position, kgram);
     }
     function dispatchEvent(type) {
       return function() {
