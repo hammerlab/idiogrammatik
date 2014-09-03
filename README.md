@@ -16,7 +16,12 @@ built-in.
 The current genome used is GRCh38, with staining mimicking Giemsa cytoband
 staining in order to provide important visuospacial orientation.
 
-A running demo can be found at [www.isaachodes.io/idio](http://www.isaachodes.io/idio). Shift-clicking ranges selects/highlights them.
+[D3.js](http://d3js.org/) is required for this software to work. Just include it
+earlier in the page, and all will be well.
+
+A running demo can be found at
+[www.isaachodes.io/idio](http://www.isaachodes.io/idio). Shift-clicking ranges
+selects/highlights them.
 
 #### Documentation
 
@@ -49,3 +54,8 @@ Note the `load` function, which asynchronously loads the cytobands data (and
 caches it, so subsequent calls to load are instantaneous).
 
 Note also that D3.js must be included in the page before idiogrammatik.js.
+
+
+#### License
+
+Licensed under the [Apache License](LICENSE.txt), Version 2.0.
