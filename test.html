@@ -21,7 +21,12 @@
            shifted = false;
 
        window.onkeydown = function(e) { if (e.shiftKey) shifted = true; };
-       window.onkeyup = function(e) { if (shifted && !e.shiftKey) { shifted = false; lastPos = null; } };
+       window.onkeyup = function(e) {
+         if (shifted && !e.shiftKey) {
+           shifted = false;
+           lastPos = null;
+         }
+       };
 
        window.kgram = idiogrammatik()
             .on('click', function(position, kgram) {
@@ -37,19 +42,6 @@
                   lastPos = position;
                 }
               }
-            })
-            .redraw(function(svg, scale) {
-              var data = svg.selectAll('.chromosome').data();
-
-              svg.selectAll('.cname')
-                  .data(data, function(d) { return d.key; })
-                .enter().append('text')
-                  .attr('class', 'cname')
-                  .attr('y', -9)
-                  .text(function(d) { return d.key; });
-
-              svg.selectAll('.cname')
-                  .attr('x', function(d) { return scale(d.start); });
             });
 
        d3.select('body')

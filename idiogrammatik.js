@@ -1,4 +1,4 @@
-(function() {
+(function(exports) {
 "use strict";
 
 // Data from GRCh38 [cytobands.tsv]
@@ -8,18 +8,22 @@ var INCLUDED_CHROMOSOME_NAMES = ["chr1", "chr2", "chr3", "chr4", "chr5", "chr6",
                                  "chr7", "chr8", "chr9", "chr10", "chr11", "chr12",
                                  "chr13", "chr14", "chr15", "chr16", "chr17",
                                  "chr18", "chr19", "chr20", "chr21", "chr22",
-                                 "chrX", "chrY"];
-var IDIOGRAM_HEIGHT = 7;
-var HIGHLIGHT_HEIGHT = 21;
-var CENTROMERE_RADIUS = 1.5;
-var ARM_CLIP_RADIUS = 10;
-var CHR_1 = 'chr1', CHR_Y = 'chrY';
+                                 "chrX", "chrY"],
+    IDIOGRAM_HEIGHT = 7,
+    HIGHLIGHT_HEIGHT = 21,
+    HIGHLIGHT_COLOR = 'yellow',
+    HIGHLIGHT_OPACITY = 0.2,
+    CENTROMERE_RADIUS = 1.5,
+    ARM_CLIP_RADIUS = 10,
+    WIDTH = 800,
+    HEIGHT = 100,
+    MARGIN = {top: 50, bottom: 20, left: 20, right: 20};
 
 
 function _idiogrammatik() {
-  var width = 800,
-      height = 100,
-      margin = {top: 50, bottom: 20, left: 20, right: 50},
+  var width = WIDTH,
+      height = HEIGHT,
+      margin = MARGIN,
       xscale = d3.scale.linear(), // Scale to map x-pos to base pair.
       deferred = [], // List of functions to be called upon draw.
       customRedraw = identity, // Additional function to be called upon redraw.
@@ -29,6 +33,7 @@ function _idiogrammatik() {
       idiogramHeight = IDIOGRAM_HEIGHT,
       centromereRadius = CENTROMERE_RADIUS,
       highlightHeight = HIGHLIGHT_HEIGHT,
+      armClipRadius = ARM_CLIP_RADIUS,
       zoom, // Zoom behavior reference.
       // Closed-over customizable vars:
       svg, chromosomes, listener, data, highlights = [],
@@ -39,7 +44,7 @@ function _idiogrammatik() {
   function kgram(selection) {
     // Function which actually renders and begins the visualization.
     //
-    // Closes around everything.
+    // Closes around nearly everything above.
     data = selection.datum();
     xscale.domain([0, data.totalBases])
         .range([0, width - margin.left - margin.right]);
@@ -56,6 +61,7 @@ function _idiogrammatik() {
 
     drawn = true;
   }
+  // Aesthetics:
   kgram.width = function(_) {
     if (!arguments.length) return width;
     width = _;
@@ -71,17 +77,6 @@ function _idiogrammatik() {
     margin = _;
     return kgram;
   };
-  kgram.highlights = function() {
-    return highlights;
-  };
-  kgram.svg = function() {
-    return svg;
-  };
-  kgram.scale = function() {
-    return xscale;
-  };
-
-  // Aesthetics:
   kgram.stainer = function(_) {
     if (!arguments.length) return bandStainer;
     bandStainer = _;
@@ -100,6 +95,11 @@ function _idiogrammatik() {
   kgram.centromereRadius = function(_) {
     if (!arguments.length) return centromereRadius;
     centromereRadius = _;
+    return kgram;
+  };
+  kgram.armClipRadius = function(_) {
+    if (!arguments.length) return armClipRadius;
+    armClipRadius = _;
     return kgram;
   };
 
@@ -121,6 +121,12 @@ function _idiogrammatik() {
   };
 
   // Interact
+  kgram.svg = function() {
+    return svg;
+  };
+  kgram.scale = function() {
+    return xscale;
+  };
   kgram.zoom = function(domain) {
     if (arguments.length !== 1)
       throw "Must pass argument `[domainStart, domainEnd]`.";
@@ -170,6 +176,10 @@ function _idiogrammatik() {
       return kgram;
     }
   };
+  kgram.highlights = function() {
+    return highlights;
+  };
+
 
   highlights.remove = function() {
     // This allows us to remove all highlights at once from the highlight array
@@ -187,7 +197,7 @@ function _idiogrammatik() {
     // Closes around xscale.
     var chromosomes = svg.selectAll('.chromosome');
 
-    resizeArmClips(chromosomes, xscale);
+    resizeArmClips(chromosomes, xscale, armClipRadius);
     resizeBands(chromosomes, xscale, idiogramHeight, centromereRadius);
     renderHighlights(svg, data, highlights, xscale, idiogramHeight, highlightHeight);
     customRedraw(svg, xscale);
@@ -198,8 +208,10 @@ function _idiogrammatik() {
 
 
   function initializeMouseListener(listener) {
+    // Initializes all event & behavior listeners on an invisible rectangle on
+    // top of all the SVG elements.
     //
-    // Closes around xscale
+    // Closes around xscale, zoom.
     zoom = d3.behavior.zoom()
           .x(xscale)
           .on('zoom', onzoom)
@@ -283,21 +295,21 @@ function addPQArms(chromosome) {
 }
 
 
-function resizeArmClips(chromosomes, xscale) {
+function resizeArmClips(chromosomes, xscale, armClipRadius) {
   var xMin = xscale.domain()[0];
 
   chromosomes.selectAll('.clipper-p')
       // xMin required because these coords are within-chromosome
       .attr('width', function(d) { return xscale(xMin + d.pArm.end - d.pArm.start); })
-      .attr('rx', ARM_CLIP_RADIUS)
-      .attr('ry', ARM_CLIP_RADIUS);
+      .attr('rx', armClipRadius)
+      .attr('ry', armClipRadius);
 
   chromosomes.selectAll('.clipper-q')
       // xMin required because these coords are within-chromosome
       .attr('x', function(d) { return xscale(xMin + d.pArm.end - d.pArm.start); })
       .attr('width', function(d) { return xscale(xMin + d.qArm.end - d.qArm.start); })
-      .attr('rx', ARM_CLIP_RADIUS)
-      .attr('ry', ARM_CLIP_RADIUS);
+      .attr('rx', armClipRadius)
+      .attr('ry', armClipRadius);
 }
 
 
@@ -445,7 +457,7 @@ function parseHighlight(data, args) {
   if (!Array.isArray(args)) return args;
 
   var chrStart, chrEnd, start, end, opts,
-      color = 'yellow', opacity = 0.2;
+      color = HIGHLIGHT_COLOR, opacity = HIGHLIGHT_OPACITY;
 
   if (typeof args[0] === 'string') {
     // We assume agr 1 is chr name string, arg 2 is relative bp,
@@ -609,22 +621,22 @@ function parseCytoRow(row) {
 
 
 function _init(callback) {
-  if (window.idiogrammatik.__data__)
+  if (exports.idiogrammatik.__data__)
     callback(null, window.idiogrammatik.__data__);
   else
     d3.tsv('cytoband.tsv', parseCytoRow, function(err, data) {
       if (err) {
         callback(err);
       } else {
-        window.idiogrammatik.__data__ = cytobandsToChromosomes(data);
+        exports.idiogrammatik.__data__ = cytobandsToChromosomes(data);
         callback(null, window.idiogrammatik.__data__);
       }
     });
 }
 
 
-window.idiogrammatik = _idiogrammatik;
-window.idiogrammatik.load = _init;
+exports.idiogrammatik = _idiogrammatik;
+exports.idiogrammatik.load = _init;
 
 
 // Example usage:
@@ -638,4 +650,4 @@ window.idiogrammatik.load = _init;
 // See more in `test.html`.
 
 
-})();
+})(this);
