@@ -9,6 +9,7 @@ var INCLUDED_CHROMOSOME_NAMES = ["chr1", "chr2", "chr3", "chr4", "chr5", "chr6",
                                  "chr13", "chr14", "chr15", "chr16", "chr17",
                                  "chr18", "chr19", "chr20", "chr21", "chr22",
                                  "chrX", "chrY"],
+    CYTOBAND_TSV_URL = 'cytoband.tsv',
     IDIOGRAM_HEIGHT = 7,
     HIGHLIGHT_HEIGHT = 21,
     HIGHLIGHT_COLOR = 'yellow',
@@ -630,7 +631,7 @@ function _init(callback) {
   if (exports.idiogrammatik.__data__)
     callback(null, window.idiogrammatik.__data__);
   else
-    d3.tsv('cytoband.tsv', parseCytoRow, function(err, data) {
+    d3.tsv(exports.idiogrammatik.__cytoband_url__, parseCytoRow, function(err, data) {
       if (err) {
         callback(err);
       } else {
@@ -642,6 +643,7 @@ function _init(callback) {
 
 
 exports.idiogrammatik = _idiogrammatik;
+exports.idiogrammatik.__cytoband_url__ = CYTOBAND_TSV_URL;
 exports.idiogrammatik.load = _init;
 
 
