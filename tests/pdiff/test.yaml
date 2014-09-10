@@ -1,0 +1,16 @@
+setup: |
+  http-server -p 8776
+
+tests:
+  - name: pdiffbasic
+    url: http://localhost:8776/tests/pdiff/test.html
+    config:
+      injectCss: |
+        body {
+          background-color: white;
+        }
+      injectJs: |
+        setTimeout(function() {}, 5000);
+      viewportSize:
+        width: 1024
+        height: 768
