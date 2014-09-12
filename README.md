@@ -56,6 +56,28 @@ caches it, so subsequent calls to load are instantaneous).
 Note also that D3.js must be included in the page before idiogrammatik.js.
 
 
+#### Running tests
+
+Idiogrammatik is tested using [dpxdt](https://github.com/bslatkin/dpxdt),
+allowing arbitrary code to be run, testing the features of the idiogram, and
+then taking screenshot of the result and comparing it against a golden master of
+the expected visual outcome.
+
+To run tests, install dpxdt, (in a virtual environment, if you like), and run it with
+
+```
+dpxdt test tests/pdiff
+```
+
+To update the screenshots, assuming a change has been made, run
+
+```
+dpxdt update tests/pdiff
+```
+
+You can easilys ee the different by using `git webdiff`, assuming you have
+[that awesome tool installed](https://github.com/danvk/webdiff).
+
 #### License
 
 Licensed under the [Apache License](LICENSE.txt), Version 2.0.
