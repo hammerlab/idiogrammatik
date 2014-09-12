@@ -2,15 +2,29 @@ setup: |
   http-server -p 8776
 
 tests:
-  - name: pdiffbasic
+  - name: basic
     url: http://localhost:8776/tests/pdiff/test.html
     config:
-      injectCss: |
-        body {
-          background-color: white;
-        }
+      viewportSize:
+        width: 1024
+        height: 768
+  - name: highlights
+    url: http://localhost:8776/tests/pdiff/test.html
+    config:
       injectJs: |
-        setTimeout(function() {}, 5000);
+        kgram.highlight('chr2', 0, 'chr2', 129100000);
+        kgram.highlight('chr4', 0, 'chr4', 129100000, {color: 'red', opacity: 0.5});
+        var h = kgram.highlight('chr3', 0, 'chr3', 110000000);
+        h.remove();
+        kgram.highlight('chr1', 52000000, 'chr1', 129100000, {color: 'blue', opacity: 0.5});
+      viewportSize:
+        width: 1024
+        height: 768
+  - name: zoom
+    url: http://localhost:8776/tests/pdiff/test.html
+    config:
+      injectJs: |
+        kgram.zoom([1450000000, 1550000000]);
       viewportSize:
         width: 1024
         height: 768

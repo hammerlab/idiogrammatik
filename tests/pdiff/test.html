@@ -7,13 +7,17 @@
 
     <script src="/d3.js"></script>
     <script src="/idiogrammatik.js"></script>
+    <style>
+     body {
+       background: white;
+     }
+    </style>
   </head>
 
   <body>
-    <p>Shift-click to highlight regions. <code>kgram</code> is available in the global namespace to add highlights to, extend its functionality, etc..</p>
-    <p><pre><code>kgram.highlight('chr2', 0, 'chr4', 0, {color: 'red', opacity: 0.5}); // for example</code></pre></p>
     <script>
      idiogrammatik.__cytoband_url__ = '/cytoband.tsv'
+
      idiogrammatik.load(function(err, data) {
        if (err)  return console.log('error: ', err);
 
@@ -57,8 +61,6 @@
        d3.select('body')
            .datum(data)
            .call(kgram);
-
-       var highlightChr4 = kgram.highlight('chr4', 0, 'chr5', 0, {color: 'blue'});
      });
     </script>
   </body>
