@@ -5,7 +5,7 @@ Idiogrammatik provides a simple, small, fast, and highly extensible idiogram
 (alternatively, [karyogram](http://en.wikipedia.org/wiki/Karyogram)) that can be
 embedded in any webpage.
 
-![](http://cl.ly/image/3k452P1D2V35/Screen%20Recording%202014-09-02%20at%2011.53%20PM.gif)
+![](http://cl.ly/image/3C1l163S3p0u/Screen%20Recording%202014-09-14%20at%2004.53%20PM.gif)
 
 The goal of project is to provide an easily navigable map of the human
 genome. The map should be speedy, intuitive, and provide enough hooks in and
@@ -38,7 +38,7 @@ this library be very simple.
 
 The minimum viable example:
 
-![](http://cl.ly/image/0M371r0O3R1k/Screen%20Shot%202014-08-29%20at%205.19.56%20PM.png)
+![](http://cl.ly/image/323a301L1q2n/Screen%20Shot%202014-09-14%20at%204.58.46%20PM.png)
 
 ```javascript
 idiogrammatik.load(function(err, data) {
