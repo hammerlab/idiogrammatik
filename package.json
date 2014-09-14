@@ -1,0 +1,33 @@
+{
+  "name": "idiogrammatik.js",
+  "version": "0.1.0",
+  "description": "An extensible, embeddable karyogram for the browser.",
+  "main": "idiogrammatik.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "make test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:ihodes/idiogrammatik.git"
+  },
+  "keywords": [
+    "karyogram",
+    "genomics",
+    "genome",
+    "chromosomes",
+    "idiogrammatik",
+    "idiogram"
+  ],
+  "dependencies": {
+      "d3": ">=1.0"
+  },
+  "author": "Isaac Hodes",
+  "license": "Apache License, Version 2.0",
+  "bugs": {
+    "url": "https://github.com/ihodes/idiogrammatik/issues"
+  },
+  "homepage": "https://github.com/ihodes/idiogrammatik"
+}
