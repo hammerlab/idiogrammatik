@@ -7,20 +7,24 @@ embedded in any webpage.
 
 ![](http://cl.ly/image/3k452P1D2V35/Screen%20Recording%202014-09-02%20at%2011.53%20PM.gif)
 
-The goal of project is to provide an easily navigable map of the human
-genome. The map should be speedy, intuitive, and provide enough hooks in and
-events out to handle most reasonable tasks related to navigating a genome
-without requiring a bloated library that handles every case for every user
-built-in.
+The goal of project is to provide an easily navigable map of the human (or,
+really, any) genome. The map should be speedy, intuitive, and provide enough
+hooks in and events out to handle most reasonable tasks related to navigating a
+genome without requiring a bloated library that handles every case for every
+user built-in.
 
-The current genome used is GRCh38, with staining mimicking Giemsa cytoband
-staining in order to provide important visuospacial orientation.
+The example genome used is from GRCh38, with Giemsa cytoband staining in order
+to provide important visuospacial orientation. This data can be found in
+`gstained-chromosomes.json`, but any data of that form can be loaded (or
+hard-coded). This enables any sort of chromosomes with any sort of banding to be
+easily displayed; thus, idiogrammatik can be used for mouse, fruit fly, or alien
+genome navigation. Handy.
 
 [D3.js](http://d3js.org/) is required for this software to work. Just include it
 earlier in the page, and all will be well.
 
 A running demo can be found at
-[www.isaachodes.io/idio](http://www.isaachodes.io/idio). Shift-clicking ranges
+[www.isaachodes.io/idio](http://www.isaachodes.io/idio). Shift-dragging ranges
 selects/highlights them.
 
 #### Documentation
@@ -41,19 +45,16 @@ The minimum viable example:
 ![](http://cl.ly/image/0M371r0O3R1k/Screen%20Shot%202014-08-29%20at%205.19.56%20PM.png)
 
 ```javascript
-idiogrammatik.load(function(err, data) {
-  if (err) return console.log('error: ', err);
+d3.json('data/gstrained-chromosomes.json', function(err, chromosomes) {
+  if (err) return console.error(err);
 
   d3.select('body')
-      .datum(data)
+      .datum(chromosomes)
       .call(idiogrammatik());
 });
 ```
 
-Note the `load` function, which asynchronously loads the cytobands data (and
-caches it, so subsequent calls to load are instantaneous).
-
-Note also that D3.js must be included in the page before idiogrammatik.js.
+Note that D3.js must be included in the page before idiogrammatik.js.
 
 
 #### Running tests

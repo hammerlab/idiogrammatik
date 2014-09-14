@@ -2,34 +2,29 @@
 "use strict";
 
 // Check for the existence (or require) d3.js, which is required for
-// idiogrammatik.
+// idiogrammatik. Set _d3 to mirror it, so we don't put d3 into the global
+// namespace by accident.
 if (typeof d3 === 'undefined') {
   if (typeof require === 'function') {
-    d3 = require('d3');
+    // Don't overwrite a global d3 instance.
+    var _d3 = require('d3');
   } else {
     throw "d3.js must be included before idiogrammatik.js.";
   }
+} else {
+  var _d3 = d3;
 }
 
 
-// Data from GRCh38 [cytobands.tsv]
-// c.f. http://bioviz.org/quickload//H_sapiens_Dec_2013/
-// c.f. http://www.ncbi.nlm.nih.gov/projects/genome/assembly/grc/human/data/
-var INCLUDED_CHROMOSOME_NAMES = ["chr1", "chr2", "chr3", "chr4", "chr5", "chr6",
-                                 "chr7", "chr8", "chr9", "chr10", "chr11", "chr12",
-                                 "chr13", "chr14", "chr15", "chr16", "chr17",
-                                 "chr18", "chr19", "chr20", "chr21", "chr22",
-                                 "chrX", "chrY"],
-    CYTOBAND_TSV_URL = 'cytoband.tsv',
-    IDIOGRAM_HEIGHT = 7,
+var IDIOGRAM_HEIGHT = 7,
+    CLIP_RADIUS = 7,
     HIGHLIGHT_HEIGHT = 21,
     HIGHLIGHT_COLOR = 'yellow',
     HIGHLIGHT_OPACITY = 0.2,
-    CENTROMERE_RADIUS = 1.5,
-    ARM_CLIP_RADIUS = 10,
     WIDTH = 800,
     HEIGHT = 100,
-    MARGIN = {top: 50, bottom: 20, left: 20, right: 20};
+    MARGIN = {top: 50, bottom: 20, left: 20, right: 20},
+    ALL_CHROMOSOMES = null;
 
 
 // This is the primary export of this file. Calling this function returns an
@@ -39,16 +34,15 @@ function _idiogrammatik() {
   var width = WIDTH,
       height = HEIGHT,
       margin = MARGIN,
-      xscale = d3.scale.linear(), // Scale to map x-pos to base pair.
+      xscale = _d3.scale.linear(), // Scale to map x-pos to base pair.
       deferred = [], // List of functions to be called upon draw.
       customRedraw = identity, // Additional function to be called upon redraw.
       drawn = false, // True once the kgram has been called once (so, drawn).
       // Aesthetics:
       bandStainer = gstainFiller,
       idiogramHeight = IDIOGRAM_HEIGHT,
-      centromereRadius = CENTROMERE_RADIUS,
+      clipRadius = CLIP_RADIUS,
       highlightHeight = HIGHLIGHT_HEIGHT,
-      armClipRadius = ARM_CLIP_RADIUS,
       zoom, // Zoom behavior reference.
       // Closed-over customizable vars:
       svg, chromosomes, listener, data, highlights = [], events = {};
@@ -57,15 +51,16 @@ function _idiogrammatik() {
     // Function which actually renders and begins the visualization.
     //
     // Closes around nearly everything above.
-    data = selection.datum();
+    data = preprocessChromosomes(selection.datum());
+
     xscale.domain([0, data.totalBases])
         .range([0, width - margin.left - margin.right]);
 
     svg = appendSvg(selection, width, height, margin),
     chromosomes = appendChromosomes(svg, data, bandStainer, idiogramHeight),
     listener = appendListenerBox(svg, width, height, margin);
-    appendArmClips(chromosomes, idiogramHeight);
     initializeMouseListener(listener);
+    appendChromosomeClips(chromosomes, idiogramHeight);
 
     deferred.map(function(callable) { callable(); });
 
@@ -103,15 +98,10 @@ function _idiogrammatik() {
     if (!arguments.length) return idiogramHeight;
     idiogramHeight = _;
     return kgram;
-  }
-  kgram.centromereRadius = function(_) {
-    if (!arguments.length) return centromereRadius;
-    centromereRadius = _;
-    return kgram;
   };
-  kgram.armClipRadius = function(_) {
-    if (!arguments.length) return armClipRadius;
-    armClipRadius = _;
+  kgram.clipRadius= function(_) {
+    if (!arguments.length) return clipRadius;
+    clipRadius = _;
     return kgram;
   };
 
@@ -132,6 +122,20 @@ function _idiogrammatik() {
     else bp = chr.start + bp;
     return positionFromAbsoluteBp(data, bp);
   };
+  kgram.data = function() {
+    return data;
+  };
+  kgram.ALL_CHROMOSOMES = ALL_CHROMOSOMES;
+  kgram.get = function(chr, bandName) {
+    var chromosome = chromosomeFromName(data, chr);
+    if (!bandName) {
+      return chromosome;
+    } else {
+      return chromosome.bands.filter(function(band) {
+        if (band.name === bandName) return true;
+      })[0];
+    }
+  }
 
   // Interact
   kgram.svg = function() {
@@ -140,11 +144,14 @@ function _idiogrammatik() {
   kgram.scale = function() {
     return xscale;
   };
-  kgram.zoom = function(domain) {
-    if (arguments.length !== 1)
-      throw "Must pass argument `[domainStart, domainEnd]`.";
-    d3.transition().tween('zoom', function() {
-      var interpolatedX = d3.interpolate(xscale.domain(), domain);
+  kgram.zoom = function(/* args */) {
+    var args = Array.prototype.slice.call(arguments),
+        range = rangeFromArgs(args, data),
+        absoluteStart = range.chromosome.absoluteStart + range.start,
+        absoluteEnd = range.chromosome.absoluteStart + range.end;
+    _d3.transition().tween('zoom', function() {
+      var interpolatedX = _d3.interpolate(xscale.domain(),
+                                          [absoluteStart, absoluteEnd]);
       return function(t) {
         zoom.x(xscale.domain(interpolatedX(t)));
         redraw();
@@ -166,14 +173,13 @@ function _idiogrammatik() {
     var args = Array.prototype.slice.call(arguments);
 
     var futureHighlight = function() {
-      var highlight = parseHighlight(data, args);
+      var highlight = parseHighlight(args, data);
 
       highlight.remove = function() {
         var idx = highlights.indexOf(highlight);
         highlights.splice(idx, 1);
-        if (drawn) redraw(null, null, null, true);
+        if (drawn) redraw();
         highlight.remove = null;
-        return kgram;
       }
       highlights.push(highlight);
 
@@ -182,7 +188,7 @@ function _idiogrammatik() {
 
     if (drawn) {
       var result = futureHighlight();
-      redraw(null, null, null, true);
+      redraw();
       return result;
     } else {
       deferred.push(futureHighlight);
@@ -213,8 +219,8 @@ function _idiogrammatik() {
     // Closes around xscale.
     var chromosomes = svg.selectAll('.chromosome');
 
-    resizeArmClips(chromosomes, xscale, armClipRadius);
-    resizeBands(chromosomes, xscale, idiogramHeight, centromereRadius);
+    resizeBands(chromosomes, xscale, idiogramHeight);
+    resizeChromosomeClips(chromosomes, xscale, clipRadius);
     renderHighlights(svg, data, highlights, xscale, idiogramHeight, highlightHeight);
     customRedraw(svg, xscale);
     reattachListenerToTop(svg);
@@ -228,13 +234,13 @@ function _idiogrammatik() {
     // top of all the SVG elements.
     //
     // Closes around xscale, zoom.
-    zoom = d3.behavior.zoom()
+    zoom = _d3.behavior.zoom()
           .x(xscale)
           .on('zoom', onzoom)
           .on('zoomstart', dispatchEvent('zoomstart'))
           .on('zoomend', dispatchEvent('zoomend'));
 
-    var drag = d3.behavior.drag()
+    var drag = _d3.behavior.drag()
           .on('drag', dispatchEvent('drag'))
           .on('dragstart', dispatchEvent('dragstart'))
           .on('dragend', dispatchEvent('dragend'));
@@ -247,16 +253,16 @@ function _idiogrammatik() {
         .call(zoom)
         .call(drag);
 
-    function onzoom() {
-      var position = positionFrom(data, d3.mouse(this), xscale);
+    function onzoom(event) {
+      var position = positionFrom(data, _d3.mouse(this), xscale);
       redraw();
-      events['zoom'] && events['zoom'](position, kgram);
+      events['zoom'] && events['zoom'](position, kgram, event);
     }
     function dispatchEvent(type) {
-      return function() {
+      return function(event) {
         if (events[type]) {
-          var position = positionFrom(data, d3.mouse(this), xscale);
-          events[type] && events[type](position, kgram);
+          var position = positionFrom(data, _d3.mouse(this), xscale);
+          events[type](position, kgram, event);
         }
       }
     }
@@ -271,99 +277,35 @@ function identity(_) {
 }
 
 
-function getter(attr) {
+function getter() {
+  var attrs = Array.prototype.slice.call(arguments);
   return function(d) {
-    return d[attr];
+    var res = d;
+    for (var i in attrs) {
+      res = res[attrs[i]];
+    }
+    return res;
   }
 }
 
 
-function gstainFiller(d) {
-  var stain = d.gstain;
-  if (stain === 'gneg') {
-    return '#dfdfdf';
-  } else if (stain === 'gpos') {
-    return '#525252';
-  } else if (stain === 'acen') {
-    return null;
-  } else if (stain === 'gvar') {
-    return '#cfcfcf';
-  } else if (stain === 'stalk') {
-    return '#cfcfcf';
-  } else {
-    return 'white';
-  }
-}
-
-
-function addPQArms(chromosome) {
-  var bands = chromosome.values;
-
-  var centerP = bands.filter(function(d) {
-    return d.gstain === 'acen' && d.bandname[0] === 'p';
-  });
-
-  var centerQ = bands.filter(function(d) {
-    return d.gstain === 'acen' && d.bandname[0] === 'q';
-  });
-
-  chromosome.pArm = { start: chromosome.start };
-  chromosome.qArm = { end: chromosome.end };
-
-  if (centerP.length > 0)
-    chromosome.pArm.end = chromosome.start + centerP[0].end;
-  if (centerQ.length > 0)
-    chromosome.qArm.start = chromosome.start + centerQ[0].start;
-}
-
-
-function resizeArmClips(chromosomes, xscale, armClipRadius) {
-  var xMin = xscale.domain()[0];
-
-  chromosomes.selectAll('.clipper-p')
-      // xMin required because these coords are within-chromosome
-      .attr('width', function(d) { return xscale(xMin + d.pArm.end - d.pArm.start); })
-      .attr('rx', armClipRadius)
-      .attr('ry', armClipRadius);
-
-  chromosomes.selectAll('.clipper-q')
-      // xMin required because these coords are within-chromosome
-      .attr('x', function(d) { return xscale(xMin + d.pArm.end - d.pArm.start); })
-      .attr('width', function(d) { return xscale(xMin + d.qArm.end - d.qArm.start); })
-      .attr('rx', armClipRadius)
-      .attr('ry', armClipRadius);
-}
-
-
-function resizeBands(chromosomes, xscale, idiogramHeight, centromereRadius) {
+function resizeBands(chromosomes, xscale, idiogramHeight) {
   var xMin = xscale.domain()[0],
       xMax = xscale.domain()[1];
 
   chromosomes
       .attr('transform', function(d) {
-        return 'translate(' + xscale(d.start) + ',0)';
+        return 'translate(' + xscale(d.absoluteStart) + ',0)';
+      })
+      .attr('clip-path', function(d) {
+        return 'url(#' + d.name + ')';
       });
 
   chromosomes
     .selectAll('.band')
       // xMin required because these coords are within-chromosome
       .attr('x', function(d) { return xscale(xMin + d.start); })
-      .attr('width', function(d) { return xscale(xMin + d.end - d.start); })
-      .attr('clip-path', function(d) {
-        if ((d.end + d.chromosome.start) <= d.chromosome.center) // then we're in the P arm
-          return 'url(#' + d.chromosomeName + '-clipper-P' + ')';
-        else // well, then we're in the Q arm
-          return 'url(#' + d.chromosomeName + '-clipper-Q' + ')';
-      });
-
-  chromosomes
-    .selectAll('.centromere')
-      .attr('cx', function(d) {
-        return xscale(xMin + d.center - d.start);
-      })
-      .attr('cy', idiogramHeight/2)
-      .attr('fill', '#FF3333')
-      .attr('r', centromereRadius);
+      .attr('width', function(d) { return xscale(xMin + d.end - d.start); });
 }
 
 
@@ -389,48 +331,40 @@ function appendChromosomes(svg, data, bandStainer, idiogramHeight) {
       .attr('class', 'chromosome');
 
   chromosomes.selectAll('.band')
-      .data(function(d) { return d.values; })
+      .data(function(d) { return d.bands; })
     .enter().append('rect')
       .attr('class', 'band')
       .attr('fill', bandStainer)
       .attr('y', 0)
       .attr('height', idiogramHeight);
 
-  chromosomes.selectAll('.centromere')
-      .data(function(d) { return [d]; })
-    .enter().append('circle')
-      .attr('class', 'centromere');
-
   return chromosomes;
 }
 
 
-// This appends, to the chromosomes (a d3 selection) clipping rectangles in
-// order to display the start and and of p and q arms (and, as such, delineate
-// chromosomes from one another as well).
-function appendArmClips(chromosomes, idiogramHeight) {
+function appendChromosomeClips(chromosomes, idiogramHeight) {
   chromosomes
     .append('g')
     .append('clipPath')
       .attr('id', function(d) {
-        return d.key + '-clipper-P';
+        return d.name;
       })
     .append('rect')
-      .attr('class', 'clipper-p')
+      .attr('class', 'clipper')
       .attr('y', 0)
       .attr('height', idiogramHeight)
       .attr('x', 0);
+}
 
-  chromosomes
-    .append('g')
-    .append('clipPath')
-      .attr('id', function(d) {
-        return d.key + '-clipper-Q';
-      })
-    .append('rect')
-      .attr('class', 'clipper-q')
-      .attr('y', 0)
-      .attr('height', idiogramHeight);
+
+function resizeChromosomeClips(chromosomes, xscale, clipRadius) {
+  var xMin = xscale.domain()[0];
+
+  chromosomes.selectAll('.clipper')
+      // xMin required because these coords are within-chromosome
+      .attr('width', function(d) { return xscale(xMin + d.totalBases); })
+      .attr('rx', clipRadius)
+      .attr('ry', clipRadius);
 }
 
 
@@ -446,11 +380,11 @@ function appendListenerBox(svg, width, height, margin) {
 }
 
 
-function renderHighlights(svg, data, highlights, xscale, idiogramHeight, highlightHeight) {
+function renderHighlights(svg, data, highlights, xscale,
+                          idiogramHeight, highlightHeight) {
   var highlight = svg.selectAll('.highlight')
         .data(highlights, highlightKey),
-      xMin = xscale.domain()[0],
-      xMax = xscale.domain()[1];
+      xMin = xscale.domain()[0];
 
   highlight
     .enter().append('rect')
@@ -459,91 +393,85 @@ function renderHighlights(svg, data, highlights, xscale, idiogramHeight, highlig
 
   highlight
       .attr('x', function(d) {
-        return xscale(d.start);
+        return xscale(d.start + d.chromosome.absoluteStart);
       })
       .attr('y', -(highlightHeight/2)+(idiogramHeight/2))
       .attr('width', function(d) {
         return xscale(xMin + d.end - d.start);
       })
-      .attr('fill', getter('color'))
-      .attr('opacity', getter('opacity'));
+      .attr('fill', getter('options', 'color'))
+      .attr('opacity', getter('options', 'opacity'));
 
   highlight.exit().remove();
 
   function highlightKey(d) {
-    return d.chrStart + ':' + d.start + '-' + d.chrEnd + ':' + d.end;
+    return d.chromosome.name + ':' + d.start + '-' +  d.end;
   }
 }
 
 
-function parseHighlight(data, args) {
+function parseHighlight(args, data) {
   // Parses a highlight object from an argument array.
-  //
-  // Or, if already parsed, returns the object.
-  // Returns {chrStart: chr, chrEnd: chr, start: numberInAbsoluteBp,
-  //          end: numberInAbsoluteBp, color: 'color', opacity: opacity}
-  if (!Array.isArray(args)) return args;
+  var opts = {color: HIGHLIGHT_COLOR,
+              opacity: HIGHLIGHT_OPACITY};
 
-  var chrStart, chrEnd, start, end, opts,
-      color = HIGHLIGHT_COLOR, opacity = HIGHLIGHT_OPACITY;
-
-  if (typeof args[0] === 'string') {
-    // We assume agr 1 is chr name string, arg 2 is relative bp,
-    // args 3 is chr name string 2, arg 4 is relative bp within that chr,
-    // then opts (opts is always assumed last).
-    chrStart = chromosomeFromName(data, args[0]);
-    chrEnd = chromosomeFromName(data, args[2]);
-    start = args[1] + chrStart.start;
-    end = args[3] + chrEnd.start;
-    opts = args[4];
-  } else if (typeof args[0] === 'number') {
-    // Then we assume args 1 and 2 are the absolute base pairs
-    start = args[0];
-    end = args[1];
-    if (!end) {
-      end = data.totalBases;
-    }
-    chrStart = chromosomeFromAbsoluteBp(data, start);
-    chrEnd = chromosomeFromAbsoluteBp(data, end);
-    opts = args[2];
-  } else if (typeof args[0].chromosome === 'string') {
-    // Else we assume args 1, 2 like {bp: relativeBp, chromsome: 'chr1-Y'}
-    chrStart = chromosomeFromName(data, args[0].chromosome);
-    chrEnd = chromosomeFromName(data, args[1].chromosome);
-    start = args[0].bp + chrStart.start;
-    end = args[1].bp + chrEnd.start;
-    opts = args[2];
-  } else {
-    // Else we assume it's a position object (as passed to the event handlers)
-    // {absoluteBp: xyz, chromsome: { chr object ... }, etc}
-    chrStart = args[0].chromosome;
-    chrEnd = args[1].chromosome;
-    start = args[0].absoluteBp;
-    end = args[1].absoluteBp;
-    opts = args[2];
+  if (typeof args[args.length - 1] === 'object') {
+    var tempOpts = args[args.length - 1];
+    opts.color = tempOpts.color || opts.color;
+    opts.opacity = tempOpts.opacity || opts.opacity;
+    args.splice(args.length - 1, 1);
   }
-  if (opts && opts.color) color = opts.color;
-  if (opts && opts.opacity) opacity = opts.opacity;
 
-  var tmp;
-  // Order the start and end.
-  if (start > end) {
-    tmp = start;
-    start = end;
-    end = tmp;
-    tmp = chrStart;
-    chrStart = chrEnd;
-    chrEnd = tmp;
-  }
+  var range = rangeFromArgs(args, data);
 
   return {
-    chrStart: chrStart,
-    chrEnd: chrEnd,
-    start: start,
-    end: end,
-    color: color,
-    opacity: opacity
+    start: range.start,
+    end: range.end,
+    chromosome: range.chromosome,
+    options: opts
   }
+}
+
+
+function rangeFromArgs(args, data) {
+  // Special case: args[0] === ALL_CHROMOSOMES;
+  if (args[0] === ALL_CHROMOSOMES)
+    return {start: 0, end: data.totalBases, chromosome: {absoluteStart: 0}};
+
+
+  // The first argument is always the chromosome name.
+  var chromosome = chromosomeFromName(data, args[0]),
+      start, end;
+  if (!chromosome) throw "Chromosome name must be a string.";
+
+  if (args.length === 1) {
+    // Then it's an entire chromosome we're highlighting here.
+    // e.g. ('chr22')
+    start = 0;
+    end = chromosome.totalBases;
+  } else if (args.length === 2) {
+    // Then we're highlighting a certain band by name.
+    // e.g. ('chr2', 'p1.13')
+    var band = chromosome.bands.filter(function(band) {
+      if (band.name === args[1]) return true;
+    })[0];
+    if (!band)
+      throw "Band name does not exist in chromosome" + chromosome.name + ".";
+    start = band.start;
+    end = band.end;
+  } else if (args.length === 3) {
+    // Then we're highlighting a range within a chromosome
+    // e.g. ('chr2', 10000, 2000000)
+    start = args[1];
+    end = args[2];
+  } else {
+    throw "Unrecognized arguments for highlight."
+  }
+
+  if (end > chromosome.totalBases)
+    end = chromosome.totalBases;
+
+  return {start: start, end: end, chromosome: chromosome};
 }
 
 
@@ -554,15 +482,12 @@ function positionFrom(data, mouse, xscale) {
 
 
 function positionFromAbsoluteBp(data, absoluteBp) {
-  var fmtBp = d3.format(','),
-      chromosome = chromosomeFromAbsoluteBp(data, absoluteBp),
-      position = { absoluteBp: absoluteBp,
-                   fmtAbsoluteBp: fmtBp(absoluteBp) };
+  var chromosome = chromosomeFromAbsoluteBp(data, absoluteBp),
+      position = {};
 
   if (chromosome) {
     position.chromosome = chromosome;
-    position.relativeBp = absoluteBp - chromosome.start;
-    position.fmtRelativeBp = fmtBp(position.relativeBp);
+    position.basePair = absoluteBp - chromosome.absoluteStart;
   }
   return position;
 }
@@ -575,108 +500,65 @@ function bpFromMouse(mouse, xscale) {
 
 function chromosomeFromAbsoluteBp(data, bp) {
   return data.filter(function(chr) {
-    return chr.start <= bp && chr.end > bp;
+    return chr.absoluteStart <= bp && chr.absoluteEnd > bp;
   })[0];
 }
 
 
 function chromosomeFromName(data, name) {
   return data.filter(function(chr) {
-    return chr.key === name;
+    return chr.name === name;
   })[0];
 }
 
 
-function cytobandsToChromosomes(cytobands) {
-  // Remove the contigs we don't care about.
-  cytobands = cytobands.filter(function(d) {
-    return INCLUDED_CHROMOSOME_NAMES.indexOf(d.chromosomeName) != -1;
-  });
+// Adds necesary information to make visualizing the chromosomes & bands easy.
+function preprocessChromosomes(chromosomes) {
+  var genomeBases = 0;
+  for (var name in chromosomes) {
+    var chromosome = chromosomes[name],
+        bands = chromosome.bands,
+        chromosomeLength = 0;
+    for (var bandIdx in bands) {
+      var band = bands[bandIdx],
+          bandLength = band.end - band.start;
 
-  // Group bands by chromosomes
-  var chromosomes = d3.nest()
-    .key(getter('chromosomeName'))
-    .sortKeys(chromosomeComparator)
-    .entries(cytobands);
-
-  // Add metainformation to each chromosome
-  var totalBases = 0;
-  for (var i in chromosomes) {
-    var bands = chromosomes[i].values;
-    var chromosomeLength = d3.max(bands, getter('end'));
-    chromosomes[i].basePairs = chromosomeLength;
-    chromosomes[i].start = totalBases;
-    totalBases += chromosomeLength;
-    chromosomes[i].end = totalBases;
-
-    addPQArms(chromosomes[i]);
-    bands.map(function(d) {
-      d.chromosome = chromosomes[i];
-    });
-    chromosomes[i].center = chromosomes[i].pArm.end;
+      chromosomeLength += bandLength;
+      band.chromosome = chromosome;
+    }
+    chromosome.totalBases = chromosomeLength;
+    chromosome.absoluteStart = genomeBases;
+    genomeBases += chromosomeLength;
+    chromosome.absoluteEnd = genomeBases;
   }
-  chromosomes.totalBases = totalBases;
-
+  chromosomes.totalBases = genomeBases;
   return chromosomes;
 }
 
 
-function chromosomeComparator(k1, k2) {
-  // Orders chromosomes strings (e.g. chrX < chr19 etc).
-  k1 = k1.slice(3);
-  k2 = k2.slice(3);
-
-  if (k1 === 'X' || k1 === 'Y' || k2 === 'X' || k2 === 'Y') {
-    if ((k1 === 'X' || k1 === 'Y') && (k2 === 'X' || k2 === 'Y')) {
-      // Both are X, Y, Y comes second.
-      return k1 === 'Y' ? 1 : -1;
-    } else {
-      // Then just one of them is X or Y, whichever is comes second.
-      return ['X', 'Y'].indexOf(k1) === -1 ? -1 : 1;
-    }
+function gstainFiller(d) {
+  var stain = d.value;
+  if (stain === 'gneg') {
+    return '#dfdfdf';
+  } else if (stain === 'gpos') {
+    return '#525252';
+  } else if (stain === 'acen') {
+    return null;
+  } else if (stain === 'gvar') {
+    return '#cfcfcf';
+  } else if (stain === 'stalk') {
+    return '#cfcfcf';
+  } else {
+    return 'white';
   }
-
-  return parseInt(k1) > parseInt(k2) ? 1 : -1;
 }
-
-
-function parseCytoRow(row) {
-  return {
-    chromosomeName: row.chromosomeName,
-    start: parseInt(row.start, 10),
-    end: parseInt(row.end, 10),
-    bandname: row.bandname,
-    gstain: row.gstain
-  };
-}
-
-
-function _init(callback) {
-  if (_idiogrammatik.__data__)
-    callback(null, window.idiogrammatik.__data__);
-  else
-    d3.tsv(_idiogrammatik.__cytoband_url__, parseCytoRow, function(err, data) {
-      if (err) {
-        callback(err);
-      } else {
-        _idiogrammatik.__data__ = cytobandsToChromosomes(data);
-        callback(null, _idiogrammatik.__data__);
-      }
-    });
-}
-
-
-_idiogrammatik.__cytoband_url__ = CYTOBAND_TSV_URL;
-_idiogrammatik.load = _init;
 
 
 // Example usage:
 //
-//      idiogrammatik.load(function(err, data) {
-//        d3.select('body')
-//           .datum(data)
-//           .call(idiogramatik());
-//      });
+//      d3.select('body')
+//         .datum(CYTOBANDS)
+//         .call(idiogramatik());
 //
 // See more in `test.html` & the README.md/DOCUMENTATION.md files.
 

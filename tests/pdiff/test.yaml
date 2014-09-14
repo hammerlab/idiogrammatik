@@ -12,11 +12,11 @@ tests:
     url: http://localhost:8776/tests/pdiff/test.html
     config:
       injectJs: |
-        kgram.highlight('chr2', 0, 'chr2', 129100000);
-        kgram.highlight('chr4', 0, 'chr4', 129100000, {color: 'red', opacity: 0.5});
-        var h = kgram.highlight('chr3', 0, 'chr3', 110000000);
+        kgram.highlight('chr2', 'p24.1');
+        kgram.highlight('chr4', {color: 'red', opacity: 0.5});
+        var h = kgram.highlight('chr3');
         h.remove();
-        kgram.highlight('chr1', 52000000, 'chr1', 129100000, {color: 'blue', opacity: 0.5});
+        kgram.highlight('chr1', 52000000, 129100000, {color: 'blue', opacity: 0.5});
       viewportSize:
         width: 1024
         height: 768
@@ -24,7 +24,8 @@ tests:
     url: http://localhost:8776/tests/pdiff/test.html
     config:
       injectJs: |
-        kgram.zoom([1450000000, 1550000000]);
+        kgram.zoom('chr2', 'p24.1');
+        kgram.highlight('chr2', 'p24.1');
       viewportSize:
         width: 1024
         height: 768

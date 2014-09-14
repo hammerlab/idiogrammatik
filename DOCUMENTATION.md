@@ -7,7 +7,7 @@ handle on how idiogrammatik works. The section that follows is a simple
 description of the API exposed by idiogrammatik. The final section includes a
 few "recipes" for quickly and easily adding useful functionaly to Idiogrammtik
 using its extensible API. The code itself is small and rather self-contained at
-around 600 commented source lines of code.
+less than 600 commented source lines of code.
 
 The API is inspired by Mike Bostock's
 ["Towards Resuable Charts"](http://bost.ocks.org/mike/chart/), with some
@@ -23,8 +23,8 @@ PRs, issues, comments, etc. are much appreciated.
 #### Short Introduction
 
 After loading idiogrammatik.js and [d3.js](http://d3js.org/), you'll want to
-load the cytoband data asynchronously, then call a configured karyogram chart on
-the selection where you'd like to render the chart. From there you can further
+load chromosome & band data, then call a configured karyogram chart on the
+selection where you'd like to render the chart. From there you can further
 extend and customize the karyogram. A minimal example follows.
 
 ```javascript
@@ -50,8 +50,8 @@ var kgram = idiogrammatik()
           .attr('x', function(d) { return scale(d.start); });
     });
 
-idiogrammatik.load(function(err, data) {
-  if (err)  return console.log('error: ', err);
+d3.json('./data/gstained-chromosomes.json', function(err, data) {
+  if (err)  return console.error(err);
 
   // Render the karyogram in <body>.
   d3.select('body')
@@ -59,32 +59,23 @@ idiogrammatik.load(function(err, data) {
       .call(kgram);
 
   // Add a highlight to the rendered karyogram (all of chromosome four).
-  var highlightChr4 = kgram.highlight('chr4', 0, 'chr5', 0, {color: 'blue'});
+  var highlightChr4 = kgram.highlight('chr4', {color: 'blue'});
 
   // Pan & zoom to a particular position in the karyogram.
-  kgram.zoom(1450000000, 1550000000);
+  kgram.zoom('chr7', 'p21.3');
 });
 ```
 
 #### Complete Introduction
 
-Idiogrammtik works in four stages:
+Idiogrammtik works in three stages:
 
-1. Load the cytoband data asynchronously.
-2. Initialize and customize a karyogram object.
-3. Bind the data to a [d3.js](http://d3js.org/) selection & call the karyogram
+1. Initialize and customize a karyogram object.
+2. Bind the data to a [d3.js](http://d3js.org/) selection & call the karyogram
    on the selection.
-4. Manipulate the drawn chart with the resultant object.
+3. Manipulate the drawn chart with the resultant object.
 
-Loading the data can be done like so:
-
-```javascript
-idiogrammatik.load(function(err, data) {
-  // Now what?
-});
-```
-
-We'll also want to configure our karyogram.
+We'll want to configure our karyogram.
 
 ```javascript
 var kgram = idiogramamtik();
@@ -97,11 +88,9 @@ chart to occupy, in the style of d3. We can then call the kgram we initialized
 to render it with that data in that element.
 
 ```javascript
-idiogrammatik.load(function(err, data) {
-  d3.select('#kgram')
-      .datum(data)
-      .call(kgram);
-});
+d3.select('#kgram')
+    .datum(chromosomes)
+    .call(kgram);
 ```
 
 At this point, a nice and simple karyogram will be rendered. Now we can further
@@ -109,20 +98,36 @@ customize it and interact with it. For example, we can highlight chromosome one,
 or zoom in on it.
 
 ```javascript
-var h1 = kgram.highlight('chr1', 0, 'chr2', 0);
+var h1 = kgram.highlight('chr1');
 // And then remove the highlight:
 h1.remove();
-// And zoom in on chromosome one:
-var start = kgram.positionFromRelative('chr1', 0).absoluteBp,
-    end = kgram.positionFromRelative('chr2', 0).absoluteBp;
-kgram.zoom(start, end);
+// And zoom in on chromosome twelve:
+kgram.zoom('chr12');
 ```
 
+### Note on data
+
+The flexibility of idiogrammatik extends to admissible chromosome data, allowing
+the user to display any sort of genome in this fashion.
+
+Two datasets of chromosomes and their bands are included with this repository,
+
+1. gstained-chromosomes.json
+2. basic-chromosomes.json
+
+The basic form of admissible chromosome data is simple:
+
+```json
+[
+  {name: 'chromosome1', bands: [{ name: 'something band 1', value: 23, start: 0, end: 123412}, ...]},
+  ...
+]
+```
+
+Look at the included files for more information. Note that `kgram.stainer(..)` must be set to a stainer (a function which dispatches on a bar, returning the SVG color that it will be "stained") that can handle the bars you pass in.
+
+
 ### API
-
-* idiogrammatik.**load**(*callback*)
-
-Asynchronously loads the cytoband data [cytoband.tsv](cytoband.tsv) and calls `callback(error, data`. The data is cached (at `idiogrammatik.__data__`) so that subsequent calls to load are immediate.
 
 * **idiogrammatik**()
 
@@ -151,10 +156,12 @@ right: 20}.* Must have keys `top`, `bottom`, `right`, `left`.
 
 * kgram.**stainer**([*stainer*])
 
-Function which determines the colors of the
-[Giemsa stained](http://en.wikipedia.org/wiki/Giemsa_stain) karyogram. Must
-return valid SVG color strings for string values `gneg`, `gpos`, `acen`, `gvar`,
-`stalk`.
+Function which dispatches on a bar object, and must return the SVG color that it
+will be "stained")
+
+Default is a function which determines the colors of the
+[Giemsa stained](http://en.wikipedia.org/wiki/Giemsa_stain) karyogram
+included in `gstained-chromosomes.json`.
 
 * kgram.**idiogramHeight**([*height*])
 
@@ -166,15 +173,10 @@ rendered. Otherwise, returns the height. *Default is 7.*
 If a height is provided, sets the height of the highlights to be
 rendered. Otherwise, returns the height of the highlights. *Default is 21.*
 
-* kgram.**centromereRadius**([*radius*])
+* kgram.**clipRadius**([*radius*])
 
-If a radius is provided, sets the radius of the centromere dots to be
-rendered. Otherwise, returns the radius. *Default is 1.5.*
-
-* kgram.**armClipRadius**([*radius*])
-
-If a radius is provided, sets the radius of the pinched chromosome arms to be
-rendered. Otherwise, returns the radius. *Default is 10.*
+If a radius is provided, sets the radius of the pinched chromosomes to be
+rendered. Otherwise, returns the radius. *Default is 7.*
 
 ##### Hooks
 
@@ -188,19 +190,25 @@ Return the d3
 [linear scale](https://github.com/mbostock/d3/wiki/Quantitative-Scales#linear-scales)
 mapping absolute base pair positions to X coordinates on the SVG plane.
 
-* kgram.**zoom**([domain])
+* kgram.**zoom**(chromosomeName, [*bandName*], [*start*, *end*])
 
-Pans and zooms the karyogram to display the domain (absolute base pairs).
+Pans and zooms the karyogram to display the rangeselected.
 
-* kgram.**highlight**(start, end, *options*)
+```javascript
+kgram.zoom('chr1')
+kgram.zoom('chr8, 15000, 2000000)
+kgram.zoom('chr9', 'q21.2')
+```
 
-Adds a highlight to the karyogram. `start` & `end` are either absolute base pair positions or position objects with keys `bp` and `chromosome`, with `bp` being the relative base position within the chromosome specified by `chromosome` (e.g. "chr1", "chr2", ..., "chrY").
+* kgram.**highlight**(chromosomeName, [*bandName*], [*start*, *end*], [*options*])
 
-`start` and `end` can also be a `position` object passed to event listener callbacks in `on` (below).
+Adds a highlight to the karyogram.
 
-An alternative calling syntax is provided for convenience:
-
-`kgram.highlight(chrNameStart, relativeBpStart, chrNameEnd, relativeBpEnd)`
+```javascript
+kgram.zoom('chr1', {color; 'blue'})
+kgram.zoom('chr8, 15000, 2000000)
+kgram.zoom('chr9', 'q21.2')
+```
 
 `options` is an optional object with possible keys `color` and `opacity`, a SVG color string and a float 0-1 respectively. *Default is `{color: 'yellow', opacity: 0.2}`.*
 
@@ -215,12 +223,10 @@ Possible `type`s are "zoom", "zoomstart", "zoomend", "mousemove", "mousedown", "
 `callback` is passed `position`, an object like the following:
 
 ```javascript
-{ chromosome: {key: 'chr8', basePairs: 145138636,
-               center: 1436550276, key: "chr8",
-               end: 1536488912, start: 1391350276,
-               pArm: {...}, qArm: {...}, bands: [...]},
-  fmtAbsoluteBp: "1,500,000,000", fmtRelativeBp: "108,649,724",
-  relativeBp: 108649724, absoluteBp: 1500000000 }
+{ chromosome: {totalBases: 145138636, name: "chr8",
+               absoluteEnd: 1536488912, absoluteStart: 1391350276,
+               bands: [...]},
+  basePair: 108649724 }
 ```
 
 And `kgram`, a reference to the current kgram.
@@ -234,7 +240,7 @@ redrawing of the karyogram.
 
 * kgram.**zoomBehavior**()
 
-Returns the D3 zoom behvaior. Useful for temporarily disabling or modifying the
+Returns the D3 zoom behavior. Useful for temporarily disabling or modifying the
 behavior.
 
 ##### Utility
@@ -244,10 +250,16 @@ behavior.
 Returns a position object (as described above) from a given absolute base
 position.
 
-* kgram.**positionFromRelative**(chrName, bp)
+* kgram.**positionFromRelative**(chromozomeName, bp)
 
 Returns a position object (as described above) from a given relative base
 position within a given chromosome (described by name, e.g. "chr22" or "chrX").
+
+* kgram.**positionFromRelative**(chromosomeName, [*bandName*])
+
+Returns the chromosome (or band of a chromosome) desired.
+
+e.g. `kgram.get('chr1') => {name: 'chr1', bands: [...], totalBases: ...}`
 
 ##### Highlights (Management)
 
@@ -272,7 +284,6 @@ events. In this manner, ranges can be selected by shift-clicking the region
 start and end-points.
 
 ```javascript
-idiogrammatik.load(function(err, data) {
   var firstPos = null,
       selection = {},
       shifted = false;
@@ -299,17 +310,25 @@ idiogrammatik.load(function(err, data) {
         if (!position.chromosome || !shifted) return;
         firstPos = position;
       })
-      .on('drag', function(position, kgram) {
-        if (!position.chromosome || !shifted) return;
+      .on('drag', function(pos, kgram) {
+        if (!pos.chromosome || !shifted || pos.chromosome !== firstPos.chromosome)
+          return;
+        var chr = pos.chromosome.name, start = firstPos.basePair, end = pos.basePair;
+        if (start > end) var temp = start, start = end, end = temp;
+
         if (selection.remove) selection.remove();
-        selection = kgram.highlight(firstPos, position);
+        selection = kgram.highlight(chr, start, end);
       })
-      .on('dragend', function(position, kgram) {
-        if (!position.chromosome || !shifted) return;
+      .on('dragend', function(pos, kgram) {
+        if (!pos.chromosome || !shifted || pos.chromosome !== firstPos.chromosome)
+          return;
+        var chr = pos.chromosome.name, start = firstPos.basePair, end = pos.basePair;
+        if (start > end) var temp = start, start = end, end = temp;
+
         if (selection.remove) selection.remove();
-        selection = kgram.highlight(firstPos, position);
+        selection = kgram.highlight(chr, start, end);
       });
-});
+
 ```
 
 In a similar manner, tooltips can be drawn on the karyogram (using the
@@ -350,8 +369,8 @@ kgram.redraw(function(svg, scale) {
 The below code demonstrates some of the current functionality:
 
 ```javascript
-idiogrammatik.load(function(err, data) {
-  if (err) return console.log('error: ', err);
+d3.json(gstained-chromosomes.json', function(err, data) {
+  if (err) return console.error(err);
 
   var kgram = idiogrammatik()
       .width(1000)
