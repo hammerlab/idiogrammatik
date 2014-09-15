@@ -7,6 +7,8 @@ embedded in any webpage.
 
 ![](http://cl.ly/image/3C1l163S3p0u/Screen%20Recording%202014-09-14%20at%2004.53%20PM.gif)
 
+![](https://nodei.co/npm/idiogrammatik.js.png)
+
 The goal of project is to provide an easily navigable map of the human (or,
 really, any) genome. The map should be speedy, intuitive, and provide enough
 hooks in and events out to handle most reasonable tasks related to navigating a
