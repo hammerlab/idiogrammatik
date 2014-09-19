@@ -415,7 +415,8 @@ function parseHighlight(args, data) {
   var opts = {color: HIGHLIGHT_COLOR,
               opacity: HIGHLIGHT_OPACITY};
 
-  if (typeof args[args.length - 1] === 'object' && args[args.length - 1] !== null) {
+  if (typeof args[args.length - 1] === 'object'
+      && args[args.length - 1] !== ALL_CHROMOSOMES) {
     var tempOpts = args[args.length - 1];
     opts.color = tempOpts.color || opts.color;
     opts.opacity = tempOpts.opacity || opts.opacity;
