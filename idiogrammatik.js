@@ -118,9 +118,9 @@ function _idiogrammatik() {
     if (arguments.length !== 2)
       throw "Must pass arguments `name of chromosome` and `relative bp position`.";
     var chr = chromosomeFromName(data, name);
-    if (bp === null) bp = chr.end;
+    if (bp === null) bp = chr.totalBases;
     else bp = chr.start + bp;
-    return positionFromAbsoluteBp(data, bp);
+    return {chromosome: chr, basePair: bp };
   };
   kgram.data = function() {
     return data;
