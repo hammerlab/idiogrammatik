@@ -184,6 +184,10 @@ function _idiogrammatik() {
     }
     return kgram;
   };
+  kgram.call = function(fn) {
+    fn(kgram);
+    return kgram;
+  };
   kgram.highlight = function() {
     if (!arguments.length) return highlights;
     var args = Array.prototype.slice.call(arguments);
@@ -216,7 +220,8 @@ function _idiogrammatik() {
   };
   kgram.zoomBehavior = function() {
     return zoom;
-  }
+  };
+
 
 
   highlights.remove = function() {

@@ -124,7 +124,9 @@ The basic form of admissible chromosome data is simple:
 ]
 ```
 
-Look at the included files for more information. Note that `kgram.stainer(..)` must be set to a stainer (a function which dispatches on a bar, returning the SVG color that it will be "stained") that can handle the bars you pass in.
+Look at the included files for more information. Note that `kgram.stainer(..)`
+must be set to a stainer (a function which dispatches on a bar, returning the
+SVG color that it will be "stained") that can handle the bars you pass in.
 
 
 ### API
@@ -237,6 +239,11 @@ If `callback` is `null`, the event listener is removed.
 
 And `kgram`, a reference to the current kgram, and `event`, the raw event
 object.
+
+* kgram.**call**(fn)
+
+A shortcut for `fn(kgram)`. Used to initialize configurations/packages/bundled
+functionality.
 
 * kgram.**redraw**(*redrawFunction*)
 
