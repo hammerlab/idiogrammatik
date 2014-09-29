@@ -165,7 +165,23 @@ function _idiogrammatik() {
     return kgram;
   };
   kgram.on = function(type, callback) {
-    events[type] = callback || identity;
+    type = type.split('.');
+    if (type.length === 1)  type.push('__DEFAULT__');
+    var subtype = type[1];
+    type = type[0];
+
+    if (callback === null) {
+      // then remove the callback
+      if (events[type] && events[type][subtype]) {
+        delete events[type][subtype];
+      }
+    } else {
+      // then add the callback
+      if (events[type] === undefined) {
+        events[type] = {};
+      }
+      events[type][subtype] = callback;
+    }
     return kgram;
   };
   kgram.highlight = function() {
@@ -256,13 +272,21 @@ function _idiogrammatik() {
     function onzoom(event) {
       var position = positionFrom(data, _d3.mouse(this), xscale);
       redraw();
-      events['zoom'] && events['zoom'](position, kgram, event);
+      if (events['zoom']) {
+        var position = positionFrom(data, _d3.mouse(this), xscale);
+        for (var subtype in events['zoom']) {
+          events['zoom'][subtype](position, kgram, event);
+        }
+      }
     }
     function dispatchEvent(type) {
       return function(event) {
         if (events[type]) {
           var position = positionFrom(data, _d3.mouse(this), xscale);
-          events[type](position, kgram, event);
+          // Dispatch all events of this type...
+          for (var subtype in events[type]) {
+            events[type][subtype](position, kgram, event);
+          }
         }
       }
     }

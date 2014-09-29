@@ -220,6 +220,12 @@ Registers event listeners on the karyogram.
 
 Possible `type`s are "zoom", "zoomstart", "zoomend", "mousemove", "mousedown", "mousedown", "click".
 
+You can also label a type with a "subtype", e.g. "click.doSomethingClick" and
+"click.doSomethingElse" so that you can add and remove different event listeners
+on the same event.
+
+If `callback` is `null`, the event listener is removed.
+
 `callback` is passed `position`, an object like the following:
 
 ```javascript
@@ -229,7 +235,8 @@ Possible `type`s are "zoom", "zoomstart", "zoomend", "mousemove", "mousedown", "
   basePair: 108649724 }
 ```
 
-And `kgram`, a reference to the current kgram.
+And `kgram`, a reference to the current kgram, and `event`, the raw event
+object.
 
 * kgram.**redraw**(*redrawFunction*)
 
