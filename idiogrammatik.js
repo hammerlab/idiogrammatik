@@ -297,6 +297,13 @@ function _idiogrammatik() {
     }
   }
 
+  kgram.disableZoomInteraction = function() {
+    listener.on('.zoom', null);
+  };
+  kgram.enableZoomInteraction = function() {
+    initializeMouseListener(listener);
+  };
+
   return kgram;
 }
 
