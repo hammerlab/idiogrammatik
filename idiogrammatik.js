@@ -10,7 +10,7 @@ if (typeof d3 === 'undefined') {
     // Don't overwrite a global d3 instance.
     _d3 = require('d3');
   } else {
-    throw "d3.js must be included before idiogrammatik.js.";
+    throw new Error("d3.js must be included before idiogrammatik.js.");
   }
 } else {
   _d3 = d3;
@@ -110,14 +110,14 @@ function _idiogrammatik() {
   kgram.positionFromAbsoluteBp = function(bp) {
     // Returns the position at a given absolute base pair.
     if (arguments.length !== 1)
-      throw "Must pass argument `absolute bp position`.";
+      throw new Error("Must pass argument `absolute bp position`.");
     return positionFromAbsoluteBp(data, bp);
   };
   kgram.positionFromRelative = function(name, bp) {
     // Returns the position at a relative base position within a chromosome
     // given by the string name.
     if (arguments.length !== 2)
-      throw "Must pass arguments `name of chromosome` and `relative bp position`.";
+      throw new Error("Must pass arguments `name of chromosome` and `relative bp position`.");
     var chr = chromosomeFromName(data, name);
     if (bp === null) bp = chr.totalBases;
     else bp = chr.start + bp;
