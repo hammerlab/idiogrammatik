@@ -4,15 +4,16 @@
 // Check for the existence (or require) d3.js, which is required for
 // idiogrammatik. Set _d3 to mirror it, so we don't put d3 into the global
 // namespace by accident.
+var _d3;
 if (typeof d3 === 'undefined') {
   if (typeof require === 'function') {
     // Don't overwrite a global d3 instance.
-    var _d3 = require('d3');
+    _d3 = require('d3');
   } else {
     throw "d3.js must be included before idiogrammatik.js.";
   }
 } else {
-  var _d3 = d3;
+  _d3 = d3;
 }
 
 
@@ -135,7 +136,7 @@ function _idiogrammatik() {
         if (band.name === bandName) return true;
       })[0];
     }
-  }
+  };
 
   // Interact
   kgram.svg = function() {
@@ -200,11 +201,11 @@ function _idiogrammatik() {
         highlights.splice(idx, 1);
         if (drawn) redraw();
         highlight.remove = null;
-      }
+      };
       highlights.push(highlight);
 
       return highlight;
-    }
+    };
 
     if (drawn) {
       var result = futureHighlight();
@@ -229,7 +230,7 @@ function _idiogrammatik() {
     // itself.
     highlights.map(function(highlight) {
       return highlight.remove;
-    }).map(function(remove) { remove() });
+    }).map(function(remove) { remove(); });
   };
 
 
@@ -277,10 +278,10 @@ function _idiogrammatik() {
     function onzoom(event) {
       var position = positionFrom(data, _d3.mouse(this), xscale);
       redraw();
-      if (events['zoom']) {
+      if (events.zoom) {
         var position = positionFrom(data, _d3.mouse(this), xscale);
-        for (var subtype in events['zoom']) {
-          events['zoom'][subtype](position, kgram, event);
+        for (var subtype in events.zoom) {
+          events.zoom[subtype](position, kgram, event);
         }
       }
     }
@@ -293,7 +294,7 @@ function _idiogrammatik() {
             events[type][subtype](position, kgram, event);
           }
         }
-      }
+      };
     }
   }
 
@@ -314,7 +315,7 @@ function getter() {
       res = res[attrs[i]];
     }
     return res;
-  }
+  };
 }
 
 
@@ -444,8 +445,8 @@ function parseHighlight(args, data) {
   var opts = {color: HIGHLIGHT_COLOR,
               opacity: HIGHLIGHT_OPACITY};
 
-  if (typeof args[args.length - 1] === 'object'
-      && args[args.length - 1] !== ALL_CHROMOSOMES) {
+  if (typeof args[args.length - 1] === 'object' &&
+      args[args.length - 1] !== ALL_CHROMOSOMES) {
     var tempOpts = args[args.length - 1];
     opts.color = tempOpts.color || opts.color;
     opts.opacity = tempOpts.opacity || opts.opacity;
@@ -459,7 +460,7 @@ function parseHighlight(args, data) {
     end: range.end,
     chromosome: range.chromosome,
     options: opts
-  }
+  };
 }
 
 
@@ -472,7 +473,7 @@ function rangeFromArgs(args, data) {
   // The first argument is always the chromosome name.
   var chromosome = chromosomeFromName(data, args[0]),
       start, end;
-  if (!chromosome) throw "Chromosome name must be a string.";
+  if (!chromosome) throw new Error("Chromosome name must be a string.");
 
   if (args.length === 1) {
     // Then it's an entire chromosome we're highlighting here.
@@ -486,7 +487,7 @@ function rangeFromArgs(args, data) {
       if (band.name === args[1]) return true;
     })[0];
     if (!band)
-      throw "Band name does not exist in chromosome" + chromosome.name + ".";
+      throw new Error("Band name does not exist in chromosome" + chromosome.name + ".");
     start = band.start;
     end = band.end;
   } else if (args.length === 3) {
@@ -495,7 +496,7 @@ function rangeFromArgs(args, data) {
     start = args[1];
     end = args[2];
   } else {
-    throw "Unrecognized arguments for highlight."
+    throw new Error("Unrecognized arguments for highlight.");
   }
 
   if (end > chromosome.totalBases)
