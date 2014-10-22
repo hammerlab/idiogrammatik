@@ -10,9 +10,7 @@
   </head>
 
   <body>
-
     <script>
-
      var firstPos = null,
          selection = {},
          shifted = false;
@@ -35,27 +33,9 @@
      };
 
      var kgram = idiogrammatik()
-           .on('dragstart', function(position, kgram) {
-             if (!position.chromosome || !shifted) return;
-             firstPos = position;
-           })
-           .on('drag', function(pos, kgram) {
-             if (!pos.chromosome || !shifted || pos.chromosome !== firstPos.chromosome)
-               return;
-             if (selection.remove) selection.remove();
-             var chr = pos.chromosome.name, start = firstPos.basePair, end = pos.basePair;
-             if (start > end) var temp = start, start = end, end = temp;
-             selection = kgram.highlight(chr, start, end);
-           })
-           .on('dragend', function(pos, kgram) {
-             if (!pos.chromosome || !shifted || pos.chromosome !== firstPos.chromosome)
-               return;
-             if (selection.remove) selection.remove();
-             var chr = pos.chromosome.name, start = firstPos.basePair, end = pos.basePair;
-             if (start > end) var temp = start, start = end, end = temp;
-             selection = kgram.highlight(chr, start, end);
+           .on('click', function(a) {
+             console.log('pos: ', kgram.position(this));
            });
-
      d3.json('/data/gstained-chromosomes.json', function(err, data) {
        if (err) console.error(err);
        window.data = data;

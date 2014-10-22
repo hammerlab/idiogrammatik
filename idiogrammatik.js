@@ -37,6 +37,7 @@ function _idiogrammatik() {
       margin = MARGIN,
       xscale = _d3.scale.linear(), // Scale to map x-pos to base pair.
       deferred = [], // List of functions to be called upon draw.
+      deferredListeners = [], // List of listeners to be registered upon draw.
       customRedraw = identity, // Additional function to be called upon redraw.
       drawn = false, // True once the kgram has been called once (so, drawn).
       // Aesthetics:
@@ -45,6 +46,7 @@ function _idiogrammatik() {
       clipRadius = CLIP_RADIUS,
       highlightHeight = HIGHLIGHT_HEIGHT,
       zoom, // Zoom behavior reference.
+      drag, // Drag behavior reference.
       // Closed-over customizable vars:
       svg, chromosomes, listener, data, highlights = [], events = {};
 
@@ -64,6 +66,7 @@ function _idiogrammatik() {
     appendChromosomeClips(chromosomes, idiogramHeight);
 
     deferred.map(function(callable) { callable(); });
+    deferredListeners.map(function(l) { kgram.on(l[0], l[1]); });
 
     redraw();
 
@@ -126,6 +129,9 @@ function _idiogrammatik() {
   kgram.data = function() {
     return data;
   };
+  kgram.position = function(that) {
+    return positionFrom(data, _d3.mouse(that), xscale);
+  };
   kgram.ALL_CHROMOSOMES = ALL_CHROMOSOMES;
   kgram.get = function(chr, bandName) {
     var chromosome = chromosomeFromName(data, chr);
@@ -146,8 +152,10 @@ function _idiogrammatik() {
     return xscale;
   };
   kgram.zoom = function(/* args */) {
-    var args = Array.prototype.slice.call(arguments),
-        range = rangeFromArgs(args, data),
+    var args = Array.prototype.slice.call(arguments);
+    if (args.length === 0) return zoom;
+
+    var range = rangeFromArgs(args, data),
         absoluteStart = range.chromosome.absoluteStart + range.start,
         absoluteEnd = range.chromosome.absoluteStart + range.end;
     _d3.transition().tween('zoom', function() {
@@ -160,28 +168,25 @@ function _idiogrammatik() {
     });
     return kgram;
   };
+  kgram.drag = function() {
+    var args = Array.prototype.slice.call(arguments);
+    if (args.length === 0) return drag;
+    return kgram;
+  };
   kgram.redraw = function(_) {
     if (!arguments.length) return redraw();
     customRedraw = _;
     return kgram;
   };
+  kgram.call = function(fn) {
+    listener.call(fn);
+    return kgram;
+  },
   kgram.on = function(type, callback) {
-    type = type.split('.');
-    if (type.length === 1)  type.push('__DEFAULT__');
-    var subtype = type[1];
-    type = type[0];
-
-    if (callback === null) {
-      // then remove the callback
-      if (events[type] && events[type][subtype]) {
-        delete events[type][subtype];
-      }
+    if (listener === undefined) {
+      deferredListeners.push([type, callback]);
     } else {
-      // then add the callback
-      if (events[type] === undefined) {
-        events[type] = {};
-      }
-      events[type][subtype] = callback;
+      listener.on(type, callback);
     }
     return kgram;
   };
@@ -220,7 +225,6 @@ function _idiogrammatik() {
     return highlights;
   };
   kgram.zoomBehavior = function() {
-    return zoom;
   };
 
 
@@ -258,20 +262,11 @@ function _idiogrammatik() {
     // Closes around xscale, zoom.
     zoom = _d3.behavior.zoom()
           .x(xscale)
-          .on('zoom', onzoom)
-          .on('zoomstart', dispatchEvent('zoomstart'))
-          .on('zoomend', dispatchEvent('zoomend'));
+          .on('zoom', onzoom);
 
-    var drag = _d3.behavior.drag()
-          .on('drag', dispatchEvent('drag'))
-          .on('dragstart', dispatchEvent('dragstart'))
-          .on('dragend', dispatchEvent('dragend'));
+    drag = _d3.behavior.drag();
 
     listener
-        .on('mousemove', dispatchEvent('mousemove'))
-        .on('mousedown', dispatchEvent('mousedown'))
-        .on('mouseup', dispatchEvent('mouseup'))
-        .on('click', dispatchEvent('click'))
         .call(zoom)
         .call(drag);
 
@@ -279,22 +274,11 @@ function _idiogrammatik() {
       var position = positionFrom(data, _d3.mouse(this), xscale);
       redraw();
       if (events.zoom) {
-        var position = positionFrom(data, _d3.mouse(this), xscale);
+        position = positionFrom(data, _d3.mouse(this), xscale);
         for (var subtype in events.zoom) {
           events.zoom[subtype](position, kgram, event);
         }
       }
-    }
-    function dispatchEvent(type) {
-      return function(event) {
-        if (events[type]) {
-          var position = positionFrom(data, _d3.mouse(this), xscale);
-          // Dispatch all events of this type...
-          for (var subtype in events[type]) {
-            events[type][subtype](position, kgram, event);
-          }
-        }
-      };
     }
   }
 

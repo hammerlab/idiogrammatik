@@ -202,6 +202,66 @@ kgram.zoom('chr8, 15000, 2000000)
 kgram.zoom('chr9', 'q21.2')
 ```
 
+If no arguments are provided, returns the D3 zoom behavior. Useful for
+temporarily disabling or modifying the behavior.
+
+* kgram.**drag**()
+
+Returns the D3 drag behavior. Useful for temporarily disabling or modifying the
+behavior.
+
+* kgram.**call**(fn)
+
+Calls fn on the kgram's listening rectangle, where all events are registered.
+
+Useful for reenabling zoom or drag behaviors if they were disabled, e.g.
+
+```javascript
+kgram.on(".zoom", null) // disable zoom
+kgram.call(kgram.zoom()) // reenable zoom
+```
+
+* kgram.**on**(type, callback)
+
+Registers event listeners on the karyogram.
+
+Possible `type`s include "mousemove", "mousedown", "mousedown", "click".
+
+You can also label a type with a "subtype", e.g. "click.doSomethingClick" and
+"click.doSomethingElse" so that you can add and remove different event listeners
+on the same event.
+
+If `callback` is `null`, the event listener is removed.
+
+To remove behaviors like drag or zoom, you may use e.g. `kgram.on(".zoom", null)`.
+
+`callback` is passed `event`, and `this` is bound to the listening object.
+
+In order to get the current position of the mouse, use `kgram.position(...)` like so:
+
+```javascript
+kgram.on("click", function(evt) {
+  console.log("position ", kgram.position(this));
+}
+```
+
+* kgram.**position**(that)
+
+Given the listening object, passed from an event listener, returns the current
+position of the mouse. Position is an object which looks like the following.
+
+```javascript
+{ chromosome: {totalBases: 145138636, name: "chr8",
+               absoluteEnd: 1536488912, absoluteStart: 1391350276,
+               bands: [...]},
+  basePair: 108649724 }
+```
+
+* kgram.**call**(fn)
+
+A shortcut for `fn(kgram)`. Used to initialize configurations/packages/bundled
+functionality.
+
 * kgram.**highlight**(chromosomeName, [*bandName*], [*start*, *end*], [*options*])
 
 Adds a highlight to the karyogram.
@@ -216,46 +276,12 @@ kgram.zoom('chr9', 'q21.2')
 
 This returns a highlight object which has a method `remove()` which removes the highlight from the karyogram.
 
-* kgram.**on**(type, callback)
-
-Registers event listeners on the karyogram.
-
-Possible `type`s are "zoom", "zoomstart", "zoomend", "mousemove", "mousedown", "mousedown", "click".
-
-You can also label a type with a "subtype", e.g. "click.doSomethingClick" and
-"click.doSomethingElse" so that you can add and remove different event listeners
-on the same event.
-
-If `callback` is `null`, the event listener is removed.
-
-`callback` is passed `position`, an object like the following:
-
-```javascript
-{ chromosome: {totalBases: 145138636, name: "chr8",
-               absoluteEnd: 1536488912, absoluteStart: 1391350276,
-               bands: [...]},
-  basePair: 108649724 }
-```
-
-And `kgram`, a reference to the current kgram, and `event`, the raw event
-object.
-
-* kgram.**call**(fn)
-
-A shortcut for `fn(kgram)`. Used to initialize configurations/packages/bundled
-functionality.
-
 * kgram.**redraw**(*redrawFunction*)
 
 If `redrawFunction` is passed, sets it to be called every time the karyogram is
 redrawn. `redrawFunction` is called after all other redrawing is done, and is
 passed the D3 `svg` selection and the current `xscale`. If not, forces a
 redrawing of the karyogram.
-
-* kgram.**zoomBehavior**()
-
-Returns the D3 zoom behavior. Useful for temporarily disabling or modifying the
-behavior.
 
 ##### Utility
 
