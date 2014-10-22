@@ -36,6 +36,8 @@
            .on('click', function(a) {
              console.log('pos: ', kgram.position(this));
            });
+
+
      d3.json('/data/gstained-chromosomes.json', function(err, data) {
        if (err) console.error(err);
        window.data = data;
