@@ -244,8 +244,9 @@ function _idiogrammatik() {
     resizeBands(chromosomes, xscale, idiogramHeight);
     resizeChromosomeClips(chromosomes, xscale, clipRadius);
     renderHighlights(svg, data, highlights, xscale, idiogramHeight, highlightHeight);
-    customRedraw(svg, xscale);
     reattachListenerToTop(svg);
+
+    customRedraw(svg, xscale);
 
     return kgram;
   }
