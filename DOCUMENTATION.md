@@ -30,10 +30,12 @@ extend and customize the karyogram. A minimal example follows.
 ```javascript
 // Initialize and configure a karyogram.
 var kgram = idiogrammatik()
-    .on('click', function(position, kgram) {
+    .on('click', function(evt) {
+      var position = kgram.position(this);
       console.log(position);
     })
-    .on('mouseover', function(position, kgram) {
+    .on('mouseover', function(evt) {
+      var position = kgram.position(this);
       console.log(position);
     })
     .redraw(function(svg, scale) {
@@ -117,7 +119,7 @@ Two datasets of chromosomes and their bands are included with this repository,
 
 The basic form of admissible chromosome data is simple:
 
-```json
+```javascript
 [
   {name: 'chromosome1', bands: [{ name: 'something band 1', value: 23, start: 0, end: 123412}, ...]},
   ...
@@ -409,23 +411,30 @@ kgram.redraw(function(svg, scale) {
 The below code demonstrates some of the current functionality:
 
 ```javascript
-d3.json(gstained-chromosomes.json', function(err, data) {
+d3.json('gstained-chromosomes.json', function(err, data) {
   if (err) return console.error(err);
 
   var kgram = idiogrammatik()
       .width(1000)
       .height(85)
-      .on('click', function(position) {
+      .on('click', function(evt) {
+        var position = kgram.position(this);
         console.log('clicked at ' + position.absoluteBp);
         if (position.chromosome) console.log(position.chromosome);
       })
-      .on('mouseover', function(position) {
+      .on('mouseover', function(evt) {
+        var position = kgram.position(this);
         console.log(position);
       })
-      .on('drag', function(position) {
+      
+    kgram.drag()
+      .on('drag', function(evt) {
+        var position = kgram.position(this);
         console.log(position);
-      })
-      .on('zoom', function(position) {
+      });
+    kgram.zoom()
+      .on('zoom', function(evt) {
+        var position = kgram.position(this);
         console.log(position);
       })
       .highlight('chrX', 0, 'chrY', 0)
@@ -440,7 +449,7 @@ d3.json(gstained-chromosomes.json', function(err, data) {
 
   // We can also add highlights after the idiogram has been displayed:
   kgram.highlight({chromosome: 'chr15', bp: 0},
-                 {chromosome: 'chr17', bp: 1000000});
+                  {chromosome: 'chr17', bp: 1000000});
 
   var h = kgram.highlight(0,
                          2000000,
