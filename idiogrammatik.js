@@ -54,13 +54,15 @@ function _idiogrammatik() {
     // Function which actually renders and begins the visualization.
     //
     // Closes around nearly everything above.
+    selection.selectAll('*').remove();
+
     data = preprocessChromosomes(selection.datum());
 
     xscale.domain([0, data.totalBases])
         .range([0, width - margin.left - margin.right]);
 
-    svg = appendSvg(selection, width, height, margin),
-    chromosomes = appendChromosomes(svg, data, bandStainer, idiogramHeight),
+    svg = appendSvg(selection, width, height, margin);
+    chromosomes = appendChromosomes(svg, data, bandStainer, idiogramHeight);
     listener = appendListenerBox(svg, width, height, margin);
     initializeMouseListener(listener);
     appendChromosomeClips(chromosomes, idiogramHeight);
@@ -531,6 +533,13 @@ function preprocessChromosomes(chromosomes) {
     var chromosome = chromosomes[name],
         bands = chromosome.bands,
         chromosomeLength = 0;
+
+    // In case we're processing a list with some elements which don't contain
+    // bands, for exmaple in the case we're processing an array we've already
+    // modified with `preprocessChromosomes'. If this weren't here, we'd have a
+    // runtime error.
+    if (bands === undefined) continue;
+
     for (var bandIdx in bands) {
       var band = bands[bandIdx],
           bandLength = band.end - band.start;
